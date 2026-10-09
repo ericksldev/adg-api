@@ -1,13 +1,14 @@
-# Multi-stage Dockerfile for adg-api.
+# Multi-stage Dockerfile for vrete-api.
 #
 # AWS ECS Fargate (default final stage = production):
-#   docker build -t adg-api .
-#   docker build --target production -t adg-api .
+#   docker build -t vrete-api .
+#   docker build --target production -t vrete-api .
 #
-# Local docker-compose.yml is unchanged: it bind-mounts the source, overrides
-# the command with `npm run dev:debug`, and uses a named volume for node_modules.
+# Local docker-compose.yml bind-mounts the source, sets NODE_ENV=development,
+# overrides the command with `npm run dev:debug`, and uses a named volume for
+# node_modules. SSL stays off unless NODE_ENV=production.
 # On a fresh node_modules volume, run once: docker compose run --rm api npm ci
-# Or build the development stage: docker build --target development -t adg-api .
+# Or build the development stage: docker build --target development -t vrete-api .
 
 # -----------------------------------------------------------------------------
 # Base: current Node.js Active LTS (Alpine)
@@ -55,8 +56,12 @@ EXPOSE 3010
 CMD ["npm", "run", "dev"]
 
 # -----------------------------------------------------------------------------
-# Production: runtime image for ECS Fargate (default stage)
-# Contains package metadata, production node_modules, and compiled dist/
+# Runtime image (default stage)
+# Same image for local and production. NODE_ENV comes from the process
+# environment (Compose locally, Lightsail in production). SSL turns on only
+# when NODE_ENV=production and reads /app/certs/global-bundle.pem.
+# Place global-bundle.pem in this build context (vrete-api/). It is not
+# downloaded during docker build.
 # -----------------------------------------------------------------------------
 FROM base AS production
 
@@ -67,6 +72,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 RUN npm prune --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
+COPY global-bundle.pem /app/certs/global-bundle.pem
 
 EXPOSE 3010
 

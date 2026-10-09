@@ -12,6 +12,7 @@ const models_1 = require("../database/models");
 const roles_interface_1 = require("../interfaces/roles/roles.interface");
 const sequelize_1 = require("sequelize");
 const access_scope_helper_1 = require("../helpers/access-scope.helper");
+const membership_access_helper_1 = require("../helpers/membership-access.helper");
 const isJwtPayload = (value) => {
     if (typeof value !== 'object' || value === null) {
         return false;
@@ -90,20 +91,16 @@ const authenticate = async (req, res, next) => {
                     isOperational: true,
                 }));
             }
-            if (company.membership_renewal_at) {
-                const graceDeadline = new Date(company.membership_renewal_at);
-                graceDeadline.setDate(graceDeadline.getDate() + 1);
-                if (Date.now() > graceDeadline.getTime()) {
-                    company.is_active = false;
-                    company.membership_status = 'CANCELLED';
-                    await company.save();
-                    return next(new apiError_1.default({
-                        name: 'MembershipExpired',
-                        statusCode: httpStatusCodes_1.default.FORBIDDEN,
-                        description: 'Membership expired. Company was automatically deactivated.',
-                        isOperational: true,
-                    }));
-                }
+            if (company.membership_renewal_at && (0, membership_access_helper_1.isRenewalPastGrace)(new Date(company.membership_renewal_at))) {
+                company.is_active = false;
+                company.membership_status = 'CANCELLED';
+                await company.save();
+                return next(new apiError_1.default({
+                    name: 'MembershipExpired',
+                    statusCode: httpStatusCodes_1.default.FORBIDDEN,
+                    description: 'Membership expired. Company was automatically deactivated.',
+                    isOperational: true,
+                }));
             }
         }
         req.user = decoded;

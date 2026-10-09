@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const container_1 = require("../containers/container");
+const authorization_constants_1 = require("../constants/authorization.constants");
+const authorization_middleware_1 = require("../middlewares/authorization.middleware");
+const recordPurgeRoutes = (0, express_1.Router)();
+recordPurgeRoutes.get('/animals', (0, authorization_middleware_1.authorize)(authorization_constants_1.Permission.RECORD_PURGE_READ), container_1.container.recordPurgeController.listAnimals);
+recordPurgeRoutes.delete('/animals/:animal_uuid', (0, authorization_middleware_1.authorize)(authorization_constants_1.Permission.RECORD_PURGE_WRITE), container_1.container.recordPurgeController.purgeAnimal);
+recordPurgeRoutes.get('/work-sessions', (0, authorization_middleware_1.authorize)(authorization_constants_1.Permission.RECORD_PURGE_READ), container_1.container.recordPurgeController.listWorkSessions);
+recordPurgeRoutes.delete('/work-sessions/:session_uuid', (0, authorization_middleware_1.authorize)(authorization_constants_1.Permission.RECORD_PURGE_WRITE), container_1.container.recordPurgeController.purgeWorkSession);
+recordPurgeRoutes.get('/audits', (0, authorization_middleware_1.authorize)(authorization_constants_1.Permission.RECORD_PURGE_READ), container_1.container.recordPurgeController.listAudits);
+exports.default = recordPurgeRoutes;

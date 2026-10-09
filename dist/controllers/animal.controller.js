@@ -10,6 +10,7 @@ const access_scope_helper_1 = require("../helpers/access-scope.helper");
 const apiError_1 = __importDefault(require("../errors/apiError"));
 const httpStatusCodes_1 = __importDefault(require("../errors/httpStatusCodes"));
 const cattle_breed_constants_1 = require("../constants/cattle-breed.constants");
+const animal_exit_constants_1 = require("../constants/animal-exit.constants");
 class AnimalController {
     constructor(animalService) {
         this.animalService = animalService;
@@ -130,9 +131,42 @@ class AnimalController {
                 if (ranchFilter?.length) {
                     params.uuid_ranch_in = ranchFilter;
                 }
+                const ranchUuid = typeof req.query.ranch_uuid === "string" ? req.query.ranch_uuid.trim() : "";
+                if (ranchUuid) {
+                    (0, access_scope_helper_1.assertRanchTokenAccess)(req.user, ranchUuid);
+                    params.ranch_uuid = ranchUuid;
+                }
                 const sexRaw = typeof req.query.sex === "string" ? req.query.sex.trim().toUpperCase() : "";
                 if (sexRaw === "MALE" || sexRaw === "FEMALE") {
                     params.sex = sexRaw;
+                }
+                const breedRaw = typeof req.query.breed_code === "string" ? req.query.breed_code.trim().toUpperCase() : "";
+                if (breedRaw && (0, cattle_breed_constants_1.isValidCattleBreedCode)(breedRaw)) {
+                    params.breed_code = breedRaw;
+                }
+                const originRaw = typeof req.query.origin_type === "string" ? req.query.origin_type.trim().toUpperCase() : "";
+                if (originRaw && this.isOriginType(originRaw)) {
+                    params.origin_type = originRaw;
+                }
+                const ownerUuid = this.optionalUuid(req.query.current_owner_uuid);
+                if (ownerUuid) {
+                    params.current_owner_uuid = ownerUuid;
+                }
+                const paddockUuid = this.optionalUuid(req.query.current_paddock_uuid);
+                if (paddockUuid) {
+                    params.current_paddock_uuid = paddockUuid;
+                }
+                const birthFrom = this.optionalIsoDate(req.query.birth_date_from);
+                if (birthFrom) {
+                    params.birth_date_from = birthFrom;
+                }
+                const birthTo = this.optionalIsoDate(req.query.birth_date_to);
+                if (birthTo) {
+                    params.birth_date_to = birthTo;
+                }
+                const exitRaw = typeof req.query.exit_type === "string" ? req.query.exit_type.trim().toUpperCase() : "";
+                if (params.status === "inactive" && exitRaw && (0, animal_exit_constants_1.isAnimalExitType)(exitRaw)) {
+                    params.exit_type = exitRaw;
                 }
                 const response = await this.animalService.getAll(params);
                 return (0, response_handler_1.handleResponse)(res, response);
@@ -218,6 +252,33 @@ class AnimalController {
                 next(error);
             }
         };
+    }
+    isOriginType(value) {
+        return value === "BIRTH" || value === "PURCHASE" || value === "TRANSFER" || value === "UNKNOWN";
+    }
+    optionalUuid(value) {
+        if (typeof value !== "string") {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+            return undefined;
+        }
+        return trimmed;
+    }
+    optionalIsoDate(value) {
+        if (typeof value !== "string") {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            return undefined;
+        }
+        const date = new Date(`${trimmed}T00:00:00.000Z`);
+        if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== trimmed) {
+            return undefined;
+        }
+        return trimmed;
     }
     isSaasOwner(req) {
         return (req.user?.roles ?? []).includes(roles_interface_1.UserRole.SAAS_OWNER);

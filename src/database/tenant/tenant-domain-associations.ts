@@ -18,6 +18,8 @@ export type TenantDomainModels = OperationalModelsBundle & {
     CorralAnimalVisualConditionModel: ModelStatic<Model>;
     CorralAnimalAdditionalMedicationModel: ModelStatic<Model>;
     CorralAnimalAdditionalTreatmentModel: ModelStatic<Model>;
+    CorralUnregisteredStepRowModel: ModelStatic<Model>;
+    RecordDeletionAuditModel: ModelStatic<Model>;
 };
 
 export function associateTenantDomainModels(m: TenantDomainModels): void {

@@ -367,6 +367,7 @@ export function createOperationalModels(sequelize: Sequelize) {
             movement_date: { type: DataTypes.DATE, allowNull: false },
             movement_reason: { type: DataTypes.STRING, allowNull: true },
             description: { type: DataTypes.TEXT, allowNull: true },
+            uuid_corral_work_session: { type: DataTypes.UUID, allowNull: true },
             is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
         },
         'animal_movements',

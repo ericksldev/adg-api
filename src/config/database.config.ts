@@ -1,4 +1,5 @@
 import { envConfig } from './env.config';
+import { getSequelizeDialectOptions } from './postgres-ssl.config';
 
 const databaseConfig = {
     user: envConfig.DB_USER,
@@ -8,16 +9,7 @@ const databaseConfig = {
     port: envConfig.DB_PORT,
     dialect: 'postgres',
     logging: false,
-    dialectOptions: envConfig.DB_SSL
-    ? {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false,
-        },
-      }
-    : {
-        ssl: false,
-    },
+    dialectOptions: getSequelizeDialectOptions(),
 };
 
 export default databaseConfig;

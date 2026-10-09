@@ -17,6 +17,7 @@ import { SESSION_EXPIRATION_TIME } from "../constants/auth.constants";
 import { IMembershipRepository } from "../interfaces/repositories/membership-repository.interface";
 import { CompanyModel } from "../database/models";
 import { normalizeLoginCredential } from '../utils/login-credential.util';
+import TermsAcceptanceService, { termsAccessUnavailable } from './terms-acceptance.service';
 
 class AuthenticationService implements IAuthenticationService {
     private readonly authenticationRepository: IAuthenticationDBRepository;
@@ -24,17 +25,20 @@ class AuthenticationService implements IAuthenticationService {
     private readonly SESSION_EXPIRATION_TIME = SESSION_EXPIRATION_TIME;
     private readonly userManagerService: IUserManagerServiceInterface<UserAttributes>;
     private readonly membershipRepository: IMembershipRepository;
+    private readonly termsAcceptanceService: TermsAcceptanceService;
 
     constructor(
         authenticationRepository: IAuthenticationDBRepository,
         sessionService: ISessionService<SessionAttributes>,
         userManagerService: IUserManagerServiceInterface<UserAttributes>,
-        membershipRepository: IMembershipRepository
+        membershipRepository: IMembershipRepository,
+        termsAcceptanceService: TermsAcceptanceService
     ) {
         this.authenticationRepository = authenticationRepository;
         this.sessionService = sessionService;
         this.userManagerService = userManagerService;
         this.membershipRepository = membershipRepository;
+        this.termsAcceptanceService = termsAcceptanceService;
     }
 
     async login(data: LoginData): Promise<ServiceResponse<any>> {
@@ -148,12 +152,23 @@ class AuthenticationService implements IAuthenticationService {
             });
         }
 
+        let terms = termsAccessUnavailable();
+        try {
+            terms = await this.termsAcceptanceService.evaluateAccess(user.uuid_user, user.uuid_company);
+        } catch {
+            terms = termsAccessUnavailable();
+        }
+
+        const { password: _password, ...publicUser } = user;
+        void _password;
+
         return {
             success: true,
             data: {
                 session: sessionResponse.data,
-                user,
+                user: publicUser,
                 token,
+                terms,
             },
         };
     }

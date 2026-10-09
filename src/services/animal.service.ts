@@ -28,7 +28,9 @@ import {
 } from "../interfaces/animal/animal-exit.interface";
 import { AnimalDisposalAttributes } from "../interfaces/animal/animal-operations.interface";
 import { CompanyAttributes, CompanyCreationAttributes } from "../interfaces/company/company.interface";
-import { normalizeCompanyPlanType, PLAN_HEAD_LIMIT } from "../constants/subscription.constants";
+import { SAAS_PLAN_RESOURCE } from "../constants/saas-plan.constants";
+import { resolveCompanyPlanCode } from "../constants/subscription.constants";
+import SaasPlanService from "./saas-plan.service";
 import { isValidCattleBreedCode } from "../constants/cattle-breed.constants";
 import PaddockRepository from "../repositories/paddock.repository";
 import OwnerRepository from "../repositories/owner.repository";
@@ -64,12 +66,14 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
     private readonly animalRepository: AnimalRepository;
     private readonly animalDisposalRepository: AnimalDisposalRepository;
     private readonly companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>;
+    private readonly saasPlanService: SaasPlanService;
     private readonly paddockRepository: PaddockRepository;
     private readonly ownerRepository: OwnerRepository;
 
     constructor(
         animalRepository: AnimalRepository,
         companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>,
+        saasPlanService: SaasPlanService,
         paddockRepository?: PaddockRepository,
         ownerRepository?: OwnerRepository,
         animalDisposalRepository?: AnimalDisposalRepository,
@@ -77,6 +81,7 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         this.animalRepository = animalRepository;
         this.animalDisposalRepository = animalDisposalRepository ?? new AnimalDisposalRepository();
         this.companyService = companyService;
+        this.saasPlanService = saasPlanService;
         this.paddockRepository = paddockRepository ?? new PaddockRepository();
         this.ownerRepository = ownerRepository ?? new OwnerRepository();
     }
@@ -268,7 +273,14 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
     }
 
     async getAll(params: IBaseParams): Promise<ServiceResponse<AnimalListItemWithExit[]>> {
-        const { rows, count } = await this.animalRepository.findAll(params);
+        const exitType = params.exit_type?.trim().toUpperCase();
+        const currentStatus = params.status === 'inactive' && exitType && isAnimalExitType(exitType)
+            ? exitTypeToCurrentStatus(exitType)
+            : undefined;
+        const { rows, count } = await this.animalRepository.findAll({
+            ...params,
+            current_status: currentStatus,
+        });
         const plainAnimals = rows.map((animal: Model<AnimalAttributes, AnimalCreationAttributes>) =>
             animal.get({ plain: true })
         ) as AnimalListItemWithExit[];
@@ -289,10 +301,10 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             data,
             pagination: {
                 totalItems: count,
-                totalPages: Math.ceil(count / params.size),
-                currentPage: params.page,
+                totalPages: params.size > 0 ? Math.ceil(count / params.size) : 1,
+                currentPage: params.size > 0 ? params.page : 1,
                 order: params.order,
-                pageSize: params.size
+                pageSize: params.size > 0 ? params.size : count
             }
         };
     }
@@ -450,8 +462,8 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             });
         }
 
-        const plan = normalizeCompanyPlanType(companyResponse.data.plan_type);
-        const limit = PLAN_HEAD_LIMIT[plan];
+        const plan = resolveCompanyPlanCode(companyResponse.data.plan_type);
+        const limit = await this.saasPlanService.getResourceLimit(tenantCompany, SAAS_PLAN_RESOURCE.ANIMALS);
         const baseCount = await this.animalRepository.countActiveByCompany(tenantCompany);
         budget = { baseCount, createdInBatch: 0, limit, planLabel: plan };
         headBudgets.set(tenantCompany, budget);

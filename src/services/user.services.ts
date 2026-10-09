@@ -13,6 +13,8 @@ import {IPasswordValidatorService} from "../interfaces/services/password-validat
 import {IBaseParams} from "../interfaces/params/query.interface";
 import {UserFieldAvailabilityResult} from "../interfaces/user/user-availability.interface";
 import { isValidAssignableRole, normalizeUserRole, UserRole } from "../interfaces/roles/roles.interface";
+import SaasPlanService from "./saas-plan.service";
+import { SAAS_PLAN_RESOURCE } from "../constants/saas-plan.constants";
 
 class UserService implements IUserManagerServiceInterface<UserAttributes> {
 
@@ -20,17 +22,20 @@ class UserService implements IUserManagerServiceInterface<UserAttributes> {
     private readonly userManagerRepository: IUserManagerRepository<UserModel>;
     private readonly companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>;
     private readonly passwordValidatorService: IPasswordValidatorService;
+    private readonly saasPlanService: SaasPlanService;
 
     constructor(
         userRepository: IBaseRepository<UserModel, UserCreationAttributes>,
         userManagerRepository: IUserManagerRepository<UserModel>,
         companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>,
-        passwordValidatorService: IPasswordValidatorService
+        passwordValidatorService: IPasswordValidatorService,
+        saasPlanService: SaasPlanService
     ) {
         this.userRepository = userRepository;
         this.userManagerRepository = userManagerRepository;
         this.companyService = companyService;
         this.passwordValidatorService = passwordValidatorService;
+        this.saasPlanService = saasPlanService;
     }
 
     private pickRoleForCreate(userBody: UserCreationAttributes): UserRole {
@@ -138,18 +143,6 @@ class UserService implements IUserManagerServiceInterface<UserAttributes> {
         return resolved;
     }
 
-    private getMaxUsersByPlan(planType: CompanyAttributes['plan_type']): number {
-        const limitsByPlan: Record<string, number> = {
-            ESSENTIAL: 20,
-            PROFESSIONAL: 60,
-            ENTERPRISE: 200,
-            BASIC: 20,
-            PREMIUM: 200
-        };
-
-        return limitsByPlan[planType] ?? 20;
-    }
-
     async getAll(params: IBaseParams): Promise<ServiceResponse<UserAttributes[]>> {
         const {rows, count} = await this.userRepository.findAll(params);
 
@@ -203,7 +196,10 @@ class UserService implements IUserManagerServiceInterface<UserAttributes> {
                 is_active: true
             }
         });
-        const maxUsersAllowed = this.getMaxUsersByPlan(company.plan_type);
+        const maxUsersAllowed = await this.saasPlanService.getResourceLimit(
+            company.uuid_company,
+            SAAS_PLAN_RESOURCE.USERS
+        );
 
         if (activeUsersInCompany >= maxUsersAllowed) {
             throw new ApiError({

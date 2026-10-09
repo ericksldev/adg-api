@@ -27,6 +27,14 @@ CompanyPaymentModel.init({
         allowNull: false,
         defaultValue: 'USD',
     },
+    exchange_rate: {
+        type: sequelize_1.DataTypes.DECIMAL(14, 6),
+        allowNull: true,
+    },
+    amount_bob: {
+        type: sequelize_1.DataTypes.DECIMAL(12, 2),
+        allowNull: true,
+    },
     payment_method: {
         type: sequelize_1.DataTypes.ENUM(...domain_constants_1.PAYMENT_METHODS),
         allowNull: true,
@@ -52,9 +60,21 @@ CompanyPaymentModel.init({
         allowNull: true,
     },
     plan_type: {
-        type: sequelize_1.DataTypes.ENUM(...domain_constants_1.COMPANY_PLAN_TYPES),
+        type: sequelize_1.DataTypes.STRING(64),
         allowNull: false,
-        defaultValue: 'ESSENTIAL',
+        defaultValue: 'VRETE_EMPRESARIAL',
+    },
+    max_users: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: true,
+    },
+    max_animals: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: true,
+    },
+    max_activity_records: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: true,
     },
     billing_cycle: {
         type: sequelize_1.DataTypes.ENUM(...domain_constants_1.BILLING_CYCLES),

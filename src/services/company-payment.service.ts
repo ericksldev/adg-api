@@ -11,19 +11,22 @@ import ApiError from "../errors/apiError";
 import HttpStatusCodes from "../errors/httpStatusCodes";
 import { CompanyAttributes, CompanyCreationAttributes } from "../interfaces/company/company.interface";
 import { CompanyModel } from "../database/models";
-import { BillingCycle, BILLING_CYCLES, COMPANY_PLAN_TYPES, PAYMENT_METHODS } from "../constants/domain.constants";
-import { getSubscriptionChargeUsd } from "../constants/subscription.constants";
+import { BillingCycle, BILLING_CYCLES, PAYMENT_METHODS } from "../constants/domain.constants";
+import SaasPlanService from "./saas-plan.service";
 
 class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttributes, CompanyPaymentCreationAttributes> {
     private readonly companyPaymentRepository: IBaseRepository<CompanyPaymentModel, CompanyPaymentCreationAttributes>;
     private readonly companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>;
+    private readonly saasPlanService: SaasPlanService;
 
     constructor(
         companyPaymentRepository: IBaseRepository<CompanyPaymentModel, CompanyPaymentCreationAttributes>,
-        companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>
+        companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>,
+        saasPlanService: SaasPlanService
     ) {
         this.companyPaymentRepository = companyPaymentRepository;
         this.companyService = companyService;
+        this.saasPlanService = saasPlanService;
     }
 
     private calculateNextRenewalDate(fromDate: Date, billingCycle: BillingCycle): Date {
@@ -34,10 +37,6 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
             renewalDate.setMonth(renewalDate.getMonth() + 6);
         }
         return renewalDate;
-    }
-
-    private calculateActivationAmount(planType: CompanyPaymentAttributes['plan_type'], billingCycle: BillingCycle): number {
-        return getSubscriptionChargeUsd(planType, billingCycle);
     }
 
     private parseDateField(rawDate: unknown, fieldName: string): Date {
@@ -52,20 +51,26 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
         return parsed;
     }
 
-    private validateAndNormalizeActivationPayment(body: CompanyPaymentCreationAttributes): {
+    private roundMoney(value: number): number {
+        return Math.round((value + Number.EPSILON) * 100) / 100;
+    }
+
+    private roundExchangeRate(value: number): number {
+        return Math.round((value + Number.EPSILON) * 1_000_000) / 1_000_000;
+    }
+
+    private async validateAndNormalizeActivationPayment(body: CompanyPaymentCreationAttributes): Promise<{
         amount: number;
         paidAt: Date;
         periodStart: Date;
         paymentReference: string | null;
         notes: string | null;
-    } {
-        if (!body.plan_type || !COMPANY_PLAN_TYPES.includes(body.plan_type)) {
-            throw new ApiError({
-                name: 'ValidationError',
-                statusCode: HttpStatusCodes.BAD_REQUEST,
-                description: 'Valid plan_type is required'
-            });
-        }
+        planCode: string;
+        currency: string;
+        exchangeRate: number;
+        amountBob: number;
+    }> {
+        const plan = await this.saasPlanService.requireAssignablePlan(body.plan_type);
 
         if (!body.billing_cycle || !BILLING_CYCLES.includes(body.billing_cycle)) {
             throw new ApiError({
@@ -83,7 +88,7 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
             });
         }
 
-        const calculatedAmount = this.calculateActivationAmount(body.plan_type, body.billing_cycle);
+        const calculatedAmount = this.saasPlanService.chargeForBillingCycle(plan.annual_price, body.billing_cycle);
         const amount = body.amount !== undefined && body.amount !== null
             ? Number(body.amount)
             : calculatedAmount;
@@ -94,6 +99,17 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
                 description: 'amount must be a positive number'
             });
         }
+
+        const exchangeRateRaw = Number(body.exchange_rate);
+        if (!Number.isFinite(exchangeRateRaw) || exchangeRateRaw <= 0) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'exchange_rate must be a positive number (BOB per 1 USD)'
+            });
+        }
+        const exchangeRate = this.roundExchangeRate(exchangeRateRaw);
+        const amountBob = this.roundMoney(amount * exchangeRate);
 
         if (body.paid_at === undefined || body.paid_at === null || String(body.paid_at).trim() === '') {
             throw new ApiError({
@@ -126,7 +142,11 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
             paidAt,
             periodStart,
             paymentReference: paymentReference.length > 0 ? paymentReference : null,
-            notes: notes.length > 0 ? notes : null
+            notes: notes.length > 0 ? notes : null,
+            planCode: plan.code,
+            currency: plan.currency,
+            exchangeRate,
+            amountBob
         };
     }
 
@@ -170,12 +190,19 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
             });
         }
 
-        const normalized = this.validateAndNormalizeActivationPayment(body);
+        const normalized = await this.validateAndNormalizeActivationPayment(body);
+        const limits = await this.saasPlanService.subscriptionLimitsForPlan(normalized.planCode);
 
         const payload: CompanyPaymentCreationAttributes = {
             ...body,
+            plan_type: normalized.planCode,
             amount: normalized.amount,
-            currency: 'USD',
+            currency: normalized.currency,
+            exchange_rate: normalized.exchangeRate,
+            amount_bob: normalized.amountBob,
+            max_users: limits.max_users,
+            max_animals: limits.max_animals,
+            max_activity_records: limits.max_activity_records,
             paid_at: normalized.paidAt,
             period_start: normalized.periodStart,
             payment_reference: normalized.paymentReference,
@@ -194,12 +221,15 @@ class CompanyPaymentService implements IBaseServiceInterface<CompanyPaymentAttri
             const baseDate = currentRenewal && currentRenewal > normalized.periodStart ? currentRenewal : normalized.periodStart;
             const nextRenewal = this.calculateNextRenewalDate(baseDate, body.billing_cycle);
 
-            company.plan_type = body.plan_type;
+            company.plan_type = normalized.planCode;
             company.billing_cycle = body.billing_cycle;
             company.membership_status = 'ACTIVE';
             company.is_active = true;
             company.membership_started_at = normalized.periodStart;
             company.membership_renewal_at = nextRenewal;
+            company.max_users = limits.max_users;
+            company.max_animals = limits.max_animals;
+            company.max_activity_records = limits.max_activity_records;
             await company.save();
 
             created.period_end = nextRenewal;

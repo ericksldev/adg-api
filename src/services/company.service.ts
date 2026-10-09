@@ -11,21 +11,25 @@ import HttpStatusCodes from "../errors/httpStatusCodes";
 import { ITenantProvisioningService } from "../interfaces/services/tenant-provisioning-service.interface";
 import { attachOperationalTenantToCompany } from "../helpers/company-operational-tenant.helper";
 import { CompanyFieldAvailabilityResult } from "../interfaces/company/company-availability.interface";
+import SaasPlanService from "./saas-plan.service";
 
 class CompanyService implements IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes> {
 
     private readonly companyRepository: CompanyRepository;
     private readonly companyPaymentRepository: IBaseRepository<CompanyPaymentModel, CompanyPaymentCreationAttributes>;
     private readonly tenantProvisioningService: ITenantProvisioningService;
+    private readonly saasPlanService: SaasPlanService;
 
     constructor(
         companyRepository: CompanyRepository,
         companyPaymentRepository: IBaseRepository<CompanyPaymentModel, CompanyPaymentCreationAttributes>,
         tenantProvisioningService: ITenantProvisioningService,
+        saasPlanService: SaasPlanService,
     ) {
         this.companyRepository = companyRepository;
         this.companyPaymentRepository = companyPaymentRepository;
         this.tenantProvisioningService = tenantProvisioningService;
+        this.saasPlanService = saasPlanService;
     }
 
     async getAll(params: IBaseParams): Promise<ServiceResponse<CompanyAttributes[]>> {
@@ -36,7 +40,7 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
 
         return {
             success: true,
-            data: plainCompanies,
+            data: await this.withAssignedPlans(plainCompanies),
             pagination: {
                 totalItems: count,
                 totalPages: Math.ceil(count / params.size),
@@ -76,7 +80,7 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
 
         return {
             success: true,
-            data: refreshed.get({ plain: true })
+            data: await this.withAssignedPlan(refreshed.get({ plain: true }))
         };
     }
 
@@ -103,7 +107,7 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
 
         return {
             success: true,
-            data: company.get({ plain: true })
+            data: await this.withAssignedPlan(company.get({ plain: true }))
         };
     }
 
@@ -157,7 +161,7 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
 
         return {
             success: true,
-            data: updatedCompany.get({ plain: true })
+            data: await this.withAssignedPlan(updatedCompany.get({ plain: true }))
         };
     }
 
@@ -224,7 +228,7 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
 
         return {
             success: true,
-            data: row.get({ plain: true })
+            data: await this.withAssignedPlan(row.get({ plain: true }))
         };
     }
 
@@ -282,7 +286,7 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
 
         return {
             success: true,
-            data: updated.get({ plain: true })
+            data: await this.withAssignedPlan(updated.get({ plain: true }))
         };
     }
 
@@ -359,8 +363,9 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
             membership_renewal_at: endDate,
             is_active: true
         };
-        const updatedCompany = await this.update(uuid_company, payload as CompanyCreationAttributes, tenantContext);
+        await this.update(uuid_company, payload as CompanyCreationAttributes, tenantContext);
 
+        const limits = await this.saasPlanService.subscriptionLimitsForPlan(currentCompany.plan_type);
         await this.companyPaymentRepository.create({
             uuid_company,
             amount: 0,
@@ -371,10 +376,50 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
             period_end: endDate,
             plan_type: currentCompany.plan_type,
             billing_cycle: currentCompany.billing_cycle,
+            max_users: limits.max_users,
+            max_animals: limits.max_animals,
+            max_activity_records: limits.max_activity_records,
             status: 'POSTED'
         });
+        await this.companyRepository.updateMembershipState(uuid_company, limits, tenantContext);
 
-        return updatedCompany;
+        const refreshed = await this.companyRepository.findById({
+            id: uuid_company,
+            uuid_company: tenantContext?.uuid_company
+        });
+        if (!refreshed) {
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Company not found or inactive'
+            });
+        }
+
+        return {
+            success: true,
+            data: await this.withAssignedPlan(refreshed.get({ plain: true }))
+        };
+    }
+
+    private async withAssignedPlan(company: CompanyAttributes): Promise<CompanyAttributes> {
+        const [withPlan] = await this.withAssignedPlans([company]);
+        return withPlan;
+    }
+
+    private async withAssignedPlans(companies: CompanyAttributes[]): Promise<CompanyAttributes[]> {
+        const summaries = await this.saasPlanService.findSummariesByCodes(
+            companies.map((company) => company.plan_type)
+        );
+        return companies.map((company) => {
+            const summary = this.saasPlanService.summaryForCode(company.plan_type, summaries);
+            const lockedLimits = this.saasPlanService.lockedPlanLimits(company);
+            return {
+                ...company,
+                plan: summary
+                    ? { ...summary, limits: lockedLimits ?? summary.limits }
+                    : null,
+            };
+        });
     }
 
     private buildCompanyPayload(
@@ -384,6 +429,10 @@ class CompanyService implements IBaseServiceInterface<CompanyAttributes, Company
         const payload: CompanyCreationAttributes = {
             ...companyBody
         };
+        delete payload.plan;
+        delete payload.max_users;
+        delete payload.max_animals;
+        delete payload.max_activity_records;
 
         const effectiveStartedAt = companyBody.membership_started_at ?? currentCompany?.membership_started_at ?? null;
         const effectiveBillingCycle = companyBody.billing_cycle ?? currentCompany?.billing_cycle;

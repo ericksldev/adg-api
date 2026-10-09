@@ -7,6 +7,7 @@ const apiError_1 = __importDefault(require("../errors/apiError"));
 const httpStatusCodes_1 = __importDefault(require("../errors/httpStatusCodes"));
 const animal_disposal_repository_1 = __importDefault(require("../repositories/animal-disposal.repository"));
 const animal_exit_constants_1 = require("../constants/animal-exit.constants");
+const saas_plan_constants_1 = require("../constants/saas-plan.constants");
 const subscription_constants_1 = require("../constants/subscription.constants");
 const cattle_breed_constants_1 = require("../constants/cattle-breed.constants");
 const paddock_repository_1 = __importDefault(require("../repositories/paddock.repository"));
@@ -16,10 +17,11 @@ const tenant_request_context_1 = require("../database/tenant/tenant-request-cont
 const ANIMAL_BATCH_MAX_ROWS = 500;
 const ANIMAL_DEACTIVATE_BATCH_MAX = 500;
 class AnimalService {
-    constructor(animalRepository, companyService, paddockRepository, ownerRepository, animalDisposalRepository) {
+    constructor(animalRepository, companyService, saasPlanService, paddockRepository, ownerRepository, animalDisposalRepository) {
         this.animalRepository = animalRepository;
         this.animalDisposalRepository = animalDisposalRepository ?? new animal_disposal_repository_1.default();
         this.companyService = companyService;
+        this.saasPlanService = saasPlanService;
         this.paddockRepository = paddockRepository ?? new paddock_repository_1.default();
         this.ownerRepository = ownerRepository ?? new owner_repository_1.default();
     }
@@ -81,15 +83,7 @@ class AnimalService {
                 description: `Parent registration number is empty (${expectedSex})`
             });
         }
-        const parentUuid = await this.animalRepository.findActiveUuidByRanchRegistrationAndSex(ranchUuid, registration_number, expectedSex);
-        if (!parentUuid) {
-            throw new apiError_1.default({
-                name: 'ValidationError',
-                statusCode: httpStatusCodes_1.default.BAD_REQUEST,
-                description: `No ${expectedSex} animal found with registration "${registration_number}" in this ranch`
-            });
-        }
-        return parentUuid;
+        return this.animalRepository.findActiveUuidByRanchRegistrationAndSex(ranchUuid, registration_number, expectedSex);
     }
     /**
      * Accepts `YYYY` (stored as Jan 1 UTC) or `YYYY-MM-DD` (UTC calendar date).
@@ -185,7 +179,14 @@ class AnimalService {
         }
     }
     async getAll(params) {
-        const { rows, count } = await this.animalRepository.findAll(params);
+        const exitType = params.exit_type?.trim().toUpperCase();
+        const currentStatus = params.status === 'inactive' && exitType && (0, animal_exit_constants_1.isAnimalExitType)(exitType)
+            ? (0, animal_exit_constants_1.exitTypeToCurrentStatus)(exitType)
+            : undefined;
+        const { rows, count } = await this.animalRepository.findAll({
+            ...params,
+            current_status: currentStatus,
+        });
         const plainAnimals = rows.map((animal) => animal.get({ plain: true }));
         let data = plainAnimals;
         if (params.status === 'inactive' && plainAnimals.length > 0) {
@@ -200,10 +201,10 @@ class AnimalService {
             data,
             pagination: {
                 totalItems: count,
-                totalPages: Math.ceil(count / params.size),
-                currentPage: params.page,
+                totalPages: params.size > 0 ? Math.ceil(count / params.size) : 1,
+                currentPage: params.size > 0 ? params.page : 1,
                 order: params.order,
-                pageSize: params.size
+                pageSize: params.size > 0 ? params.size : count
             }
         };
     }
@@ -327,8 +328,8 @@ class AnimalService {
                 description: 'Company not found',
             });
         }
-        const plan = (0, subscription_constants_1.normalizeCompanyPlanType)(companyResponse.data.plan_type);
-        const limit = subscription_constants_1.PLAN_HEAD_LIMIT[plan];
+        const plan = (0, subscription_constants_1.resolveCompanyPlanCode)(companyResponse.data.plan_type);
+        const limit = await this.saasPlanService.getResourceLimit(tenantCompany, saas_plan_constants_1.SAAS_PLAN_RESOURCE.ANIMALS);
         const baseCount = await this.animalRepository.countActiveByCompany(tenantCompany);
         budget = { baseCount, createdInBatch: 0, limit, planLabel: plan };
         headBudgets.set(tenantCompany, budget);
@@ -382,12 +383,13 @@ class AnimalService {
                 description: 'registration_number must be unique within the ranch',
             });
         }
-        const breed_code = (body.breed_code ?? '').trim();
-        if (!(0, cattle_breed_constants_1.isValidCattleBreedCode)(breed_code)) {
+        const breedRaw = body.breed_code == null ? '' : String(body.breed_code).trim();
+        const breed_code = breedRaw === '' ? null : breedRaw;
+        if (breed_code !== null && !(0, cattle_breed_constants_1.isValidCattleBreedCode)(breed_code)) {
             throw new apiError_1.default({
                 name: 'ValidationError',
                 statusCode: httpStatusCodes_1.default.BAD_REQUEST,
-                description: 'Invalid or missing breed_code',
+                description: 'Invalid breed_code',
             });
         }
         let mother_animal_uuid = body.mother_animal_uuid ?? null;
@@ -690,9 +692,9 @@ class AnimalService {
         await this.validateRanchBelongsToCompany(currentAttrs.ranch_uuid, effectiveTenant);
         const nextRanch = body.ranch_uuid ?? currentAttrs.ranch_uuid;
         await this.validateRanchBelongsToCompany(nextRanch, effectiveTenant);
-        if (body.breed_code !== undefined && body.breed_code !== null) {
-            const bc = String(body.breed_code).trim();
-            if (!(0, cattle_breed_constants_1.isValidCattleBreedCode)(bc)) {
+        if (body.breed_code !== undefined) {
+            const bc = body.breed_code == null ? '' : String(body.breed_code).trim();
+            if (bc !== '' && !(0, cattle_breed_constants_1.isValidCattleBreedCode)(bc)) {
                 throw new apiError_1.default({
                     name: 'ValidationError',
                     statusCode: httpStatusCodes_1.default.BAD_REQUEST,
@@ -752,7 +754,11 @@ class AnimalService {
         const birth_date = this.assertNormalizedBirthDate(rawBirth);
         const merged = {
             ranch_uuid: body.ranch_uuid ?? plain.ranch_uuid,
-            breed_code: body.breed_code ?? plain.breed_code,
+            breed_code: body.breed_code !== undefined
+                ? (body.breed_code == null || String(body.breed_code).trim() === ''
+                    ? null
+                    : String(body.breed_code).trim())
+                : plain.breed_code,
             registration_number: body.registration_number ?? plain.registration_number,
             chip_number,
             mother_animal_uuid,

@@ -11,6 +11,7 @@ import {
     CorralSessionAnimalsLoadBody,
     UpdateCorralStepWorkModeBody,
     AppendCorralStepAnimalsBody,
+    ApplyPaddockDistributionBody,
 } from '../interfaces/corral-session/corral-session.interface';
 import { CorralActivityCode } from '../constants/corral-work.constants';
 import { AuthRequest } from '../interfaces/middleware/auth-middleware.interface';
@@ -38,6 +39,16 @@ class CorralWorkSessionController {
                         ? (req.query.activity_code as CorralActivityCode)
                         : undefined,
             });
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    listPendingAnimalRegistrations = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const ranchUuid = typeof req.query.ranch_uuid === 'string' ? req.query.ranch_uuid : undefined;
+            const response = await this.service.listPendingAnimalRegistrations(ranchUuid);
             return handleResponse(res, response);
         } catch (error) {
             next(error);
@@ -102,6 +113,20 @@ class CorralWorkSessionController {
         try {
             const body = req.body as ScanCorralStepAnimalBody;
             const response = await this.service.scanStepAnimal(
+                req.params.uuid_corral_work_session,
+                req.params.uuid_corral_session_step,
+                body
+            );
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    addUnregisteredStepAnimal = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const body = req.body as ScanCorralStepAnimalBody;
+            const response = await this.service.addUnregisteredStepAnimal(
                 req.params.uuid_corral_work_session,
                 req.params.uuid_corral_session_step,
                 body
@@ -178,6 +203,20 @@ class CorralWorkSessionController {
         }
     };
 
+    applyPaddockDistribution = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const body = req.body as ApplyPaddockDistributionBody;
+            const response = await this.service.applyPaddockDistribution(
+                req.params.uuid_corral_work_session,
+                req.params.uuid_corral_session_step,
+                body
+            );
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
     saveStepGrid = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const body = req.body as SaveCorralStepGridBody;
@@ -185,6 +224,18 @@ class CorralWorkSessionController {
                 req.params.uuid_corral_work_session,
                 req.params.uuid_corral_session_step,
                 body
+            );
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getAnimalWorkHistory = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const response = await this.service.getAnimalWorkHistory(
+                req.params.uuid_corral_work_session,
+                req.params.animal_uuid
             );
             return handleResponse(res, response);
         } catch (error) {

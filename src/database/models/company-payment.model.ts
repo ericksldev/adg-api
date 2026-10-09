@@ -4,7 +4,7 @@ import {
     CompanyPaymentAttributes,
     CompanyPaymentCreationAttributes
 } from "../../interfaces/company/company-payment.interface";
-import { BILLING_CYCLES, COMPANY_PLAN_TYPES, PaymentMethod, PAYMENT_METHODS, PAYMENT_STATUSES } from "../../constants/domain.constants";
+import { BILLING_CYCLES, PaymentMethod, PAYMENT_METHODS, PAYMENT_STATUSES } from "../../constants/domain.constants";
 
 class CompanyPaymentModel extends Model<CompanyPaymentAttributes, CompanyPaymentCreationAttributes>
     implements CompanyPaymentAttributes {
@@ -12,6 +12,8 @@ class CompanyPaymentModel extends Model<CompanyPaymentAttributes, CompanyPayment
     declare uuid_company: string;
     declare amount: number;
     declare currency: string;
+    declare exchange_rate: number | null;
+    declare amount_bob: number | null;
     declare payment_method: PaymentMethod | null;
     declare payment_reference?: string | null;
     declare notes?: string | null;
@@ -19,6 +21,9 @@ class CompanyPaymentModel extends Model<CompanyPaymentAttributes, CompanyPayment
     declare period_start?: Date | null;
     declare period_end?: Date | null;
     declare plan_type: CompanyPaymentAttributes['plan_type'];
+    declare max_users: number | null;
+    declare max_animals: number | null;
+    declare max_activity_records: number | null;
     declare billing_cycle: CompanyPaymentAttributes['billing_cycle'];
     declare status: CompanyPaymentAttributes['status'];
     declare is_active: boolean;
@@ -46,6 +51,14 @@ CompanyPaymentModel.init(
             allowNull: false,
             defaultValue: 'USD',
         },
+        exchange_rate: {
+            type: DataTypes.DECIMAL(14, 6),
+            allowNull: true,
+        },
+        amount_bob: {
+            type: DataTypes.DECIMAL(12, 2),
+            allowNull: true,
+        },
         payment_method: {
             type: DataTypes.ENUM(...PAYMENT_METHODS),
             allowNull: true,
@@ -71,9 +84,21 @@ CompanyPaymentModel.init(
             allowNull: true,
         },
         plan_type: {
-            type: DataTypes.ENUM(...COMPANY_PLAN_TYPES),
+            type: DataTypes.STRING(64),
             allowNull: false,
-            defaultValue: 'ESSENTIAL',
+            defaultValue: 'VRETE_EMPRESARIAL',
+        },
+        max_users: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
+        max_animals: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
+        max_activity_records: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
         },
         billing_cycle: {
             type: DataTypes.ENUM(...BILLING_CYCLES),

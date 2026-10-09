@@ -64,8 +64,27 @@ const TENANT_DDL_PATCHES: string[] = [
        WHERE is_active = true;`,
     `ALTER TABLE IF EXISTS corral_session_steps
        ADD COLUMN IF NOT EXISTS work_mode VARCHAR(32) NOT NULL DEFAULT 'PRELOADED_SEARCH';`,
+    `ALTER TABLE IF EXISTS corral_step_animals
+       ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ;`,
+    `ALTER TABLE IF EXISTS corral_unregistered_step_rows
+       ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ;`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_corral_unregistered_step_rows_step_registration
+       ON corral_unregistered_step_rows (uuid_corral_session_step, lower(registration_number))
+       WHERE is_active = true;`,
     `ALTER TABLE IF EXISTS animals ALTER COLUMN breed_code DROP NOT NULL;`,
     `ALTER TABLE IF EXISTS animals ALTER COLUMN breed_code DROP DEFAULT;`,
+    `ALTER TABLE IF EXISTS animal_movements
+       ADD COLUMN IF NOT EXISTS uuid_corral_work_session UUID;`,
+    `CREATE TABLE IF NOT EXISTS record_deletion_audits (
+        id BIGSERIAL PRIMARY KEY,
+        kind CHAR(1) NOT NULL,
+        label VARCHAR(160) NOT NULL,
+        reasons VARCHAR(96) NOT NULL,
+        actor VARCHAR(64) NOT NULL,
+        deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_record_deletion_audits_deleted_at
+       ON record_deletion_audits (deleted_at DESC);`,
 ];
 
 async function animalsBirthDateColumnExists(sequelize: Sequelize): Promise<boolean> {

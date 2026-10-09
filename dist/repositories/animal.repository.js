@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const cattle_breed_constants_1 = require("../constants/cattle-breed.constants");
 const sequelize_1 = require("sequelize");
 const tenant_request_context_1 = require("../database/tenant/tenant-request-context");
 const search_where_util_1 = require("../utils/search-where.util");
@@ -20,12 +21,34 @@ const ANIMAL_SORT_COLUMNS = {
 function resolveAnimalSortColumn(sortBy) {
     return ANIMAL_SORT_COLUMNS[sortBy] ?? 'created_at';
 }
+const ANIMAL_ORIGIN_TYPES = ['BIRTH', 'PURCHASE', 'TRANSFER', 'UNKNOWN'];
+const ANIMAL_CURRENT_STATUSES = [
+    'ACTIVE',
+    'SOLD',
+    'DISPOSED',
+    'DEAD',
+    'MISSING',
+    'INACTIVE',
+];
+function parseUtcDay(value) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return null;
+    }
+    const date = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+        return null;
+    }
+    return date;
+}
 class AnimalRepository {
     async findAll(params) {
         const { AnimalModel, RanchModel } = (0, tenant_request_context_1.requireTenantModels)();
         const { page, size, sortBy, order, status } = params;
-        const offset = (page - 1) * size;
+        const unpaged = size <= 0;
         const where = {};
+        if (params.ranch_uuid) {
+            where.ranch_uuid = params.ranch_uuid;
+        }
         if (status === 'active') {
             where.is_active = true;
         }
@@ -35,6 +58,38 @@ class AnimalRepository {
         const sex = params.sex?.trim().toUpperCase();
         if (sex === "MALE" || sex === "FEMALE") {
             where.sex = sex;
+        }
+        const breedCode = params.breed_code?.trim().toUpperCase();
+        if (breedCode && (0, cattle_breed_constants_1.isValidCattleBreedCode)(breedCode)) {
+            where.breed_code = breedCode;
+        }
+        const originType = params.origin_type?.trim().toUpperCase();
+        if (originType && ANIMAL_ORIGIN_TYPES.includes(originType)) {
+            where.origin_type = originType;
+        }
+        if (params.current_owner_uuid) {
+            where.current_owner_uuid = params.current_owner_uuid;
+        }
+        if (params.current_paddock_uuid) {
+            where.current_paddock_uuid = params.current_paddock_uuid;
+        }
+        const currentStatus = params.current_status?.trim().toUpperCase();
+        if (currentStatus && ANIMAL_CURRENT_STATUSES.includes(currentStatus)) {
+            where.current_status = currentStatus;
+        }
+        const birthFrom = parseUtcDay(params.birth_date_from);
+        const birthTo = parseUtcDay(params.birth_date_to);
+        if (birthFrom || birthTo) {
+            const birthRange = {};
+            if (birthFrom) {
+                birthRange[sequelize_1.Op.gte] = birthFrom;
+            }
+            if (birthTo) {
+                const nextDay = new Date(birthTo);
+                nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+                birthRange[sequelize_1.Op.lt] = nextDay;
+            }
+            where.birth_date = birthRange;
         }
         const searchClause = (0, search_where_util_1.buildSearchOrClause)(params.search, [
             "registration_number",
@@ -63,8 +118,7 @@ class AnimalRepository {
         return await AnimalModel.findAndCountAll({
             where,
             include,
-            offset,
-            limit: size,
+            ...(unpaged ? {} : { offset: (page - 1) * size, limit: size }),
             order: [[resolveAnimalSortColumn(sortBy), order]],
             distinct: needsRanchJoin,
         });

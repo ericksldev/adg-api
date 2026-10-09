@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Removes only the Postgres data volume for this stack (all DBs in the cluster: SaaS + tenant_*).
-# Keeps the adg_api_node_modules volume so the API container does not reinstall node_modules.
-# Run from the adg-api directory: ./scripts/reset-docker-postgres.sh
+# Keeps the node_modules volume so the API container does not reinstall node_modules.
+# Run from the vrete-api directory: ./scripts/reset-docker-postgres.sh
 
 set -euo pipefail
 
@@ -16,7 +16,7 @@ docker compose down
 
 echo "Removing Postgres volume: ${POSTGRES_VOLUME_NAME} ..."
 docker volume rm "${POSTGRES_VOLUME_NAME}" 2>/dev/null || {
-  echo "Note: volume not found or still in use; if data persists, run: docker volume ls | grep adg"
+  echo "Note: volume not found or still in use; if data persists, run: docker volume ls | grep ${POSTGRES_VOLUME_NAME}"
 }
 
 echo "Done. Start again: docker compose up -d"

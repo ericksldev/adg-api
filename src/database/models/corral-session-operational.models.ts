@@ -65,6 +65,7 @@ export function createCorralSessionOperationalModels(sequelize: Sequelize) {
         uuid_corral_work_session: { type: DataTypes.UUID, allowNull: false },
         uuid_corral_session_step: { type: DataTypes.UUID, allowNull: false },
         animal_uuid: { type: DataTypes.UUID, allowNull: false },
+        scanned_at: { type: DataTypes.DATE, allowNull: true },
         is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'corral_step_animals', 'CorralStepAnimal');
 
@@ -119,6 +120,17 @@ export function createCorralSessionOperationalModels(sequelize: Sequelize) {
         is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'corral_animal_additional_medications', 'CorralAnimalAdditionalMedication');
 
+    class CorralUnregisteredStepRowModel extends Model {}
+    initCorralModel(sequelize, CorralUnregisteredStepRowModel, {
+        uuid_corral_unregistered_step_row: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+        uuid_corral_work_session: { type: DataTypes.UUID, allowNull: false },
+        uuid_corral_session_step: { type: DataTypes.UUID, allowNull: false },
+        registration_number: { type: DataTypes.STRING(128), allowNull: false },
+        cell_values: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+        scanned_at: { type: DataTypes.DATE, allowNull: true },
+        is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    }, 'corral_unregistered_step_rows', 'CorralUnregisteredStepRow');
+
     class CorralAnimalAdditionalTreatmentModel extends Model {}
     initCorralModel(sequelize, CorralAnimalAdditionalTreatmentModel, {
         uuid_corral_animal_additional_treatment: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -141,6 +153,7 @@ export function createCorralSessionOperationalModels(sequelize: Sequelize) {
         CorralAnimalVisualConditionModel,
         CorralAnimalAdditionalMedicationModel,
         CorralAnimalAdditionalTreatmentModel,
+        CorralUnregisteredStepRowModel,
     };
 }
 

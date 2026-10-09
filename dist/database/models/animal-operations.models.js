@@ -240,6 +240,7 @@ function createOperationalModels(sequelize) {
         movement_date: { type: sequelize_1.DataTypes.DATE, allowNull: false },
         movement_reason: { type: sequelize_1.DataTypes.STRING, allowNull: true },
         description: { type: sequelize_1.DataTypes.TEXT, allowNull: true },
+        uuid_corral_work_session: { type: sequelize_1.DataTypes.UUID, allowNull: true },
         is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'animal_movements', 'AnimalMovement');
     class OwnerModel extends sequelize_1.Model {

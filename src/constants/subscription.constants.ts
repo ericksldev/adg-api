@@ -1,30 +1,8 @@
-import { BillingCycle, CompanyPlanType, COMPANY_PLAN_TYPES, BILLING_CYCLES } from "./domain.constants";
+import { BillingCycle, BILLING_CYCLES } from "./domain.constants";
 
-/** Full-year subscription price in USD (used when billing_cycle is ANNUAL). */
-export const PLAN_ANNUAL_PRICE_USD: Record<CompanyPlanType, number> = {
-    ESSENTIAL: 399,
-    PROFESSIONAL: 749,
-    ENTERPRISE: 1199
-};
-
-/** Maximum active animals company-wide (all ranches) per contracted plan tier. */
-export const PLAN_HEAD_LIMIT: Record<CompanyPlanType, number> = {
-    ESSENTIAL: 300,
-    PROFESSIONAL: 1500,
-    ENTERPRISE: 5000
-};
-
-const LEGACY_PLAN_MAP: Record<string, CompanyPlanType> = {
-    BASIC: "ESSENTIAL",
-    PREMIUM: "ENTERPRISE",
-    PROFESSIONAL: "PROFESSIONAL"
-};
-
-export function normalizeCompanyPlanType(plan: string): CompanyPlanType {
-    if (COMPANY_PLAN_TYPES.includes(plan as CompanyPlanType)) {
-        return plan as CompanyPlanType;
-    }
-    return LEGACY_PLAN_MAP[plan] ?? "ESSENTIAL";
+/** Trims a stored or requested plan code. Does not invent a default plan. */
+export function resolveCompanyPlanCode(plan: string | null | undefined): string {
+    return String(plan ?? "").trim();
 }
 
 const LEGACY_BILLING_MAP: Record<string, BillingCycle> = {
@@ -41,14 +19,13 @@ export function normalizeBillingCycle(cycle: string): BillingCycle {
 }
 
 /**
- * Amount charged for the selected billing period in USD.
- * Semestral = half of the annual list price (six months).
+ * Amount charged for the selected billing period.
+ * Semestral = half of the annual catalog price (six months).
  */
-export function getSubscriptionChargeUsd(planType: string, billingCycle: BillingCycle): number {
-    const plan = normalizeCompanyPlanType(planType);
-    const annual = PLAN_ANNUAL_PRICE_USD[plan];
+export function chargeForBillingCycle(annualPrice: number, billingCycle: BillingCycle): number {
+    const annual = Number(annualPrice);
     if (billingCycle === "ANNUAL") {
-        return annual;
+        return Number(annual.toFixed(2));
     }
     return Number((annual / 2).toFixed(2));
 }

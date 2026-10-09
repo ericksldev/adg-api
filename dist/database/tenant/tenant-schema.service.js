@@ -45,9 +45,47 @@ const TENANT_DDL_PATCHES = [
     `CREATE UNIQUE INDEX IF NOT EXISTS uq_corral_session_animals_session_animal
        ON corral_session_animals (uuid_corral_work_session, animal_uuid)
        WHERE is_active = true;`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS uq_corral_activity_records_step_animal_activity
-       ON corral_activity_records (uuid_corral_session_step, animal_uuid, activity_code)
+    `DO $$
+     BEGIN
+       PERFORM pg_advisory_xact_lock(hashtext('ddl:uq_corral_activity_records_step_animal_activity'));
+       DROP INDEX IF EXISTS uq_corral_activity_records_step_animal_activity;
+       IF NOT EXISTS (
+         SELECT 1 FROM pg_indexes
+         WHERE schemaname = 'public'
+           AND indexname = 'uq_corral_activity_records_step_animal_activity'
+       ) THEN
+         CREATE UNIQUE INDEX uq_corral_activity_records_step_animal_activity
+           ON corral_activity_records (uuid_corral_session_step, animal_uuid, activity_code)
+           WHERE is_active = true
+             AND activity_code NOT IN ('VACCINATION', 'DEWORMING');
+       END IF;
+     END $$;`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_corral_step_animals_step_animal
+       ON corral_step_animals (uuid_corral_session_step, animal_uuid)
        WHERE is_active = true;`,
+    `ALTER TABLE IF EXISTS corral_session_steps
+       ADD COLUMN IF NOT EXISTS work_mode VARCHAR(32) NOT NULL DEFAULT 'PRELOADED_SEARCH';`,
+    `ALTER TABLE IF EXISTS corral_step_animals
+       ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ;`,
+    `ALTER TABLE IF EXISTS corral_unregistered_step_rows
+       ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ;`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_corral_unregistered_step_rows_step_registration
+       ON corral_unregistered_step_rows (uuid_corral_session_step, lower(registration_number))
+       WHERE is_active = true;`,
+    `ALTER TABLE IF EXISTS animals ALTER COLUMN breed_code DROP NOT NULL;`,
+    `ALTER TABLE IF EXISTS animals ALTER COLUMN breed_code DROP DEFAULT;`,
+    `ALTER TABLE IF EXISTS animal_movements
+       ADD COLUMN IF NOT EXISTS uuid_corral_work_session UUID;`,
+    `CREATE TABLE IF NOT EXISTS record_deletion_audits (
+        id BIGSERIAL PRIMARY KEY,
+        kind CHAR(1) NOT NULL,
+        label VARCHAR(160) NOT NULL,
+        reasons VARCHAR(96) NOT NULL,
+        actor VARCHAR(64) NOT NULL,
+        deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_record_deletion_audits_deleted_at
+       ON record_deletion_audits (deleted_at DESC);`,
 ];
 async function animalsBirthDateColumnExists(sequelize) {
     const rows = await sequelize.query(`SELECT EXISTS (

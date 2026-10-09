@@ -1,4 +1,4 @@
--- Ejecutar una vez contra PostgreSQL (ADG API).
+-- Ejecutar una vez contra PostgreSQL (Vrete API).
 -- Para cada usuario que ya es administrador en al menos un rancho activo de una empresa,
 -- inserta membresía de administrador en el resto de ranchos activos de esa misma empresa
 -- donde no exista ya una fila activa en user_ranches.

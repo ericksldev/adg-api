@@ -17,8 +17,7 @@ function createAnimalModel(sequelize) {
         },
         breed_code: {
             type: sequelize_1.DataTypes.STRING(64),
-            allowNull: false,
-            defaultValue: 'UNKNOWN',
+            allowNull: true,
         },
         registration_number: {
             type: sequelize_1.DataTypes.STRING(128),

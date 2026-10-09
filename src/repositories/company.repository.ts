@@ -160,7 +160,7 @@ class CompanyRepository implements
 
     async updateTenantProvisioning(
         uuid_company: string,
-        fields: { tenant_database: string; tenant_schema_version: number }
+        fields: { tenant_database: string }
     ): Promise<CompanyModel | null> {
         const [count, updated] = await CompanyModel.update(fields, {
             where: { uuid_company },

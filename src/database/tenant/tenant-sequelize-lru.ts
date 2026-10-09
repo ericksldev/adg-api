@@ -1,7 +1,8 @@
 import { Sequelize } from 'sequelize';
 import dbConfig from '../../config/database.config';
 import { envConfig } from '../../config/env.config';
-import { DEFAULT_TENANT_POOL_MAX } from '../../constants/tenant.constants';
+import { DEFAULT_TENANT_POOL_MAX, TENANT_SCHEMA_VERSION } from '../../constants/tenant.constants';
+import CompanyModel from '../models/company.model';
 import { buildTenantModelsForSequelize, TenantDomainModels } from './tenant-models.factory';
 import { syncTenantOperationalSchema } from './tenant-schema.service';
 
@@ -62,11 +63,43 @@ async function createTenantPoolEntry(databaseName: string): Promise<PoolEntry> {
     });
 
     const models = buildTenantModelsForSequelize(sequelize);
-    await syncTenantOperationalSchema(sequelize, models);
-    const entry: PoolEntry = { sequelize, models, lastUsed: Date.now() };
-    pool.set(databaseName, entry);
-    touchOrder(databaseName);
-    return entry;
+
+    try {
+        const company = await CompanyModel.findOne({
+            where: { tenant_database: databaseName },
+            attributes: ['uuid_company', 'tenant_schema_version'],
+        });
+
+        if (!company) {
+            throw new Error(
+                `Cannot prepare tenant schema: no company is linked to database ${databaseName}`
+            );
+        }
+
+        const appliedVersion = company.tenant_schema_version;
+        const schemaIsCurrent = appliedVersion != null && Number(appliedVersion) === TENANT_SCHEMA_VERSION;
+
+        if (!schemaIsCurrent) {
+            await syncTenantOperationalSchema(sequelize, models);
+            const [updatedCount] = await CompanyModel.update(
+                { tenant_schema_version: TENANT_SCHEMA_VERSION },
+                { where: { uuid_company: company.uuid_company } }
+            );
+            if (updatedCount === 0) {
+                throw new Error(
+                    `Cannot record tenant_schema_version for database ${databaseName}`
+                );
+            }
+        }
+
+        const entry: PoolEntry = { sequelize, models, lastUsed: Date.now() };
+        pool.set(databaseName, entry);
+        touchOrder(databaseName);
+        return entry;
+    } catch (error) {
+        await sequelize.close().catch(() => undefined);
+        throw error;
+    }
 }
 
 export async function getTenantPoolEntry(databaseName: string): Promise<PoolEntry> {

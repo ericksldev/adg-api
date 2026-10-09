@@ -6,16 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.attachOperationalTenantToCompany = attachOperationalTenantToCompany;
 const apiError_1 = __importDefault(require("../errors/apiError"));
 const httpStatusCodes_1 = __importDefault(require("../errors/httpStatusCodes"));
-const tenant_constants_1 = require("../constants/tenant.constants");
 /**
- * Creates tenant DB, persists `tenant_database` / `tenant_schema_version` on the company row,
- * and syncs operational schema. Ranches are created later (SaaS UI or company administrator).
+ * Creates the tenant database and links it on the company row, then builds the operational schema.
+ * `tenant_schema_version` is recorded only after sync and patches succeed (inside tenant bootstrap).
+ * Ranches are created later (SaaS UI or company administrator).
  */
 async function attachOperationalTenantToCompany(uuid_company, tenantProvisioningService, companyRepository) {
     const tenantDatabase = await tenantProvisioningService.provisionDatabase(uuid_company);
     const updatedCompany = await companyRepository.updateTenantProvisioning(uuid_company, {
         tenant_database: tenantDatabase,
-        tenant_schema_version: tenant_constants_1.TENANT_SCHEMA_VERSION,
     });
     if (!updatedCompany) {
         throw new apiError_1.default({

@@ -14,10 +14,29 @@ const roles_interface_1 = require("../interfaces/roles/roles.interface");
  * Creates the platform saas_owner (and seed company) once per database.
  * Safe on every deploy: skips when any active saas_owner already exists.
  */
+function assertProductionSeedCredentials() {
+    if (config_1.envConfig.NODE_ENV !== 'production') {
+        return;
+    }
+    const missing = [];
+    if (!config_1.envConfig.SEED_SAAS_OWNER_EMAIL) {
+        missing.push('SEED_SAAS_OWNER_EMAIL');
+    }
+    if (!config_1.envConfig.SEED_SAAS_OWNER_USERNAME) {
+        missing.push('SEED_SAAS_OWNER_USERNAME');
+    }
+    if (!config_1.envConfig.SEED_SAAS_OWNER_PASSWORD) {
+        missing.push('SEED_SAAS_OWNER_PASSWORD');
+    }
+    if (missing.length > 0) {
+        throw new Error(`Missing required environment variables when SEED_SAAS_OWNER_ENABLED=true and NODE_ENV=production: ${missing.join(', ')}`);
+    }
+}
 async function seedSaasOwnerIfNeeded() {
     if (!config_1.envConfig.SEED_SAAS_OWNER_ENABLED) {
         return;
     }
+    assertProductionSeedCredentials();
     const existingOwner = await user_model_1.default.findOne({
         where: {
             role: roles_interface_1.UserRole.SAAS_OWNER,

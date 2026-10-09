@@ -1,0 +1,416 @@
+# CONDICIONES DE SERVICIO Y ACEPTACIÓN DE MEMBRESÍA
+
+**Vrete**  
+Una solución tecnológica de **Myracore Services**
+
+**Última actualización:** [FECHA]  
+**Versión del documento:** [VERSIÓN]
+
+---
+
+## 1. ACEPTACIÓN DE LAS CONDICIONES
+
+Al contratar, activar o utilizar una membresía de Vrete, el cliente declara haber leído, comprendido y aceptado las presentes Condiciones de Servicio.
+
+Estas condiciones regulan el acceso y utilización de la plataforma Vrete y establecen los derechos y responsabilidades tanto del cliente como de Myracore Services.
+
+La contratación de Vrete implica la aceptación de estas condiciones durante todo el período de utilización del servicio.
+
+Cada usuario que acceda a Vrete mediante una cuenta individual deberá aceptar las condiciones vigentes antes de utilizar las funcionalidades de la plataforma cuando así lo requiera el sistema.
+
+La aceptación realizada por un usuario autorizado no modifica la responsabilidad general del cliente sobre la administración de su organización, sus usuarios y la información registrada en la plataforma.
+
+---
+
+## 2. DESCRIPCIÓN DEL SERVICIO
+
+Vrete es una plataforma de software bajo modalidad de suscripción (SaaS), destinada a facilitar la gestión administrativa, operativa y productiva de establecimientos dedicados a la ganadería y actividades relacionadas.
+
+Entre sus funcionalidades pueden encontrarse, según el plan contratado:
+
+- Registro y administración de animales.
+- Identificación y trazabilidad de animales.
+- Registro de nacimientos.
+- Registro de reproducción y eventos reproductivos.
+- Registro de montas.
+- Registro de pesos y pesajes.
+- Registro de producción de leche y actividades relacionadas.
+- Registro de vacunaciones.
+- Registro de desparasitaciones.
+- Registro de inspecciones.
+- Registro de tratamientos.
+- Registro de actividades realizadas sobre animales.
+- Administración de lotes, grupos, ubicaciones u otras estructuras ganaderas.
+- Reportes y herramientas de análisis.
+- Historial de eventos y actividades.
+- Gestión de usuarios y permisos.
+- Otras funcionalidades que sean incorporadas posteriormente.
+
+Las funcionalidades disponibles, límites de uso, cantidad de animales, usuarios, registros u otras capacidades pueden variar según el plan contratado.
+
+Myracore Services podrá modificar, mejorar, reemplazar o descontinuar funcionalidades cuando resulte necesario para la evolución técnica, operativa, comercial o de seguridad del servicio.
+
+---
+
+## 3. NATURALEZA DEL SERVICIO
+
+Vrete es una herramienta tecnológica de apoyo para la gestión y administración de operaciones ganaderas.
+
+Vrete no sustituye el criterio profesional, veterinario, zootécnico, administrativo, contable o legal del cliente o de sus usuarios.
+
+La información registrada en la plataforma es introducida y administrada por el cliente y sus usuarios autorizados.
+
+Por tanto, el cliente es responsable de verificar que la información registrada sea correcta, completa y utilizada de manera adecuada.
+
+Vrete no garantiza que las decisiones tomadas a partir de la información registrada en la plataforma produzcan determinados resultados productivos, reproductivos, económicos, sanitarios o comerciales.
+
+---
+
+## 4. RESPONSABILIDAD SOBRE LA INFORMACIÓN INGRESADA
+
+El cliente es responsable de la información que registra, carga, modifica, elimina o administra mediante Vrete.
+
+Esto incluye, entre otros:
+
+- Datos de animales.
+- Identificadores y códigos de animales.
+- Información de nacimientos.
+- Información reproductiva.
+- Información de montas.
+- Información de pesos.
+- Información de producción.
+- Información sanitaria.
+- Vacunaciones.
+- Desparasitaciones.
+- Inspecciones.
+- Tratamientos.
+- Fotografías e imágenes.
+- Documentos y archivos.
+- Información financiera y administrativa.
+- Datos de usuarios.
+- Credenciales de acceso.
+- Cualquier otra información introducida por el cliente o sus usuarios.
+
+El cliente deberá asegurarse de contar con las autorizaciones, permisos y bases legales que correspondan para recopilar, almacenar y utilizar la información que introduzca en la plataforma.
+
+Myracore Services proporciona la infraestructura y las herramientas necesarias para el funcionamiento de Vrete, pero no determina la legitimidad, exactitud, veracidad o legalidad de la información introducida por el cliente.
+
+El cliente será responsable de verificar los datos antes de utilizarlos para tomar decisiones relacionadas con sus animales, producción, reproducción, salud, administración u operación.
+
+---
+
+## 5. PROTECCIÓN Y CONSERVACIÓN DE LOS DATOS
+
+Myracore Services implementará medidas técnicas razonables para proteger la información almacenada en Vrete y mantener la continuidad del servicio.
+
+Sin embargo, ningún sistema informático conectado a Internet puede garantizar una protección o disponibilidad absoluta frente a todos los riesgos existentes.
+
+El cliente reconoce que pueden existir situaciones fuera del control razonable de Myracore Services, incluyendo:
+
+- Fallas de infraestructura de terceros.
+- Interrupciones de servicios de Internet.
+- Fallas de proveedores de infraestructura tecnológica.
+- Incidentes de seguridad.
+- Ataques informáticos.
+- Errores humanos.
+- Fallas de dispositivos utilizados por el cliente.
+- Corrupción de archivos.
+- Problemas de conectividad.
+- Fallas de servicios externos.
+- Situaciones de fuerza mayor o caso fortuito.
+- Otras circunstancias que no puedan ser razonablemente controladas por Myracore Services.
+
+Myracore Services realizará esfuerzos razonables para recuperar el servicio y, cuando técnicamente sea posible, la información afectada.
+
+El cliente reconoce que es su responsabilidad mantener copias o respaldos adicionales de aquella información que considere crítica para sus operaciones.
+
+---
+
+## 6. ELIMINACIÓN ACCIDENTAL O INTENCIONAL DE INFORMACIÓN
+
+Las acciones realizadas por usuarios autorizados de la cuenta se consideran realizadas bajo responsabilidad del cliente.
+
+Esto incluye, entre otras:
+
+- Eliminación de animales.
+- Eliminación de registros históricos.
+- Eliminación de fotografías.
+- Eliminación de documentos.
+- Modificación de registros.
+- Eliminación de eventos reproductivos.
+- Eliminación de pesajes.
+- Eliminación de actividades sanitarias.
+- Cambios realizados en información administrativa o productiva.
+
+Cuando una eliminación o modificación sea realizada por el cliente o alguno de sus usuarios, Myracore Services no garantiza la posibilidad de recuperar dicha información, salvo que exista un mecanismo de recuperación disponible dentro del servicio o que técnicamente sea posible recuperarla.
+
+El cliente deberá administrar adecuadamente los permisos y accesos otorgados a sus usuarios.
+
+---
+
+## 7. CREDENCIALES Y SEGURIDAD DE LAS CUENTAS
+
+Cada cliente y usuario es responsable de mantener la confidencialidad de sus credenciales de acceso.
+
+El cliente y sus usuarios deberán evitar:
+
+- Compartir contraseñas entre usuarios.
+- Permitir el acceso a personas no autorizadas.
+- Utilizar cuentas de otros usuarios.
+- Mantener sesiones abiertas en equipos de terceros.
+- Entregar credenciales a personas ajenas a la organización.
+
+Cada usuario deberá utilizar su propia cuenta individual cuando el plan contratado contemple cuentas individuales.
+
+Cualquier actividad realizada desde una cuenta correctamente autenticada podrá ser considerada una actividad realizada por el usuario correspondiente, salvo que exista evidencia suficiente de acceso no autorizado.
+
+El cliente deberá comunicar oportunamente cualquier sospecha de acceso no autorizado.
+
+---
+
+## 8. USUARIOS INCLUIDOS EN LA MEMBRESÍA
+
+Cada plan establece una cantidad determinada de usuarios y, cuando corresponda, otros límites de utilización.
+
+El cliente será responsable de administrar los usuarios de su organización y de asegurarse de que el número de usuarios activos corresponda al plan contratado.
+
+No está permitido utilizar una misma cuenta individual para múltiples personas cuando esto permita evadir las limitaciones establecidas en el plan.
+
+Myracore Services podrá solicitar al cliente regularizar el número de usuarios cuando exista un uso superior al permitido por el plan contratado.
+
+---
+
+## 9. LÍMITES DE LA MEMBRESÍA
+
+Los planes de Vrete podrán establecer límites relacionados con:
+
+- Cantidad de animales registrados.
+- Cantidad de usuarios.
+- Cantidad de registros o actividades.
+- Capacidad de almacenamiento.
+- Funcionalidades disponibles.
+- Historial disponible.
+- Otros recursos técnicos o funcionales.
+
+Los límites aplicables serán aquellos correspondientes al plan contratado por el cliente.
+
+Myracore Services podrá establecer mecanismos técnicos destinados a impedir que una cuenta exceda los límites establecidos para su membresía.
+
+El cliente podrá solicitar un cambio de plan cuando sus necesidades superen las capacidades incluidas en su membresía.
+
+---
+
+## 10. DISPONIBILIDAD DEL SERVICIO
+
+Myracore Services procurará mantener Vrete disponible y operativo de forma continua.
+
+Sin embargo, pueden producirse interrupciones temporales por:
+
+- Mantenimiento programado.
+- Actualizaciones.
+- Mejoras de infraestructura.
+- Corrección de errores.
+- Problemas técnicos.
+- Incidentes de seguridad.
+- Fallas de proveedores externos.
+- Situaciones de fuerza mayor o caso fortuito.
+
+Cuando resulte razonablemente posible, se procurará informar previamente sobre mantenimientos que puedan afectar significativamente la disponibilidad del servicio.
+
+La existencia de una interrupción temporal no implica automáticamente la terminación de la membresía ni genera derecho automático a indemnización, salvo que corresponda conforme a la normativa aplicable o a lo expresamente acordado entre las partes.
+
+---
+
+## 11. SERVICIOS DE TERCEROS
+
+Vrete puede utilizar infraestructura y servicios tecnológicos proporcionados por terceros para determinadas funciones, incluyendo servicios de almacenamiento, servidores, bases de datos, redes, distribución de contenido, comunicaciones u otros componentes tecnológicos.
+
+La continuidad de dichos servicios depende de la disponibilidad de los respectivos proveedores.
+
+Myracore Services procurará seleccionar proveedores adecuados y mantener una infraestructura razonable para la operación de Vrete, pero no puede garantizar el funcionamiento ininterrumpido de servicios que dependan de terceros.
+
+---
+
+## 12. CAMBIOS EN LAS FUNCIONALIDADES
+
+Myracore Services podrá actualizar, mejorar, modificar o reorganizar las funcionalidades de Vrete con el objetivo de mejorar el servicio, corregir problemas, aumentar la seguridad o adaptar la plataforma a nuevas necesidades técnicas y comerciales.
+
+Una funcionalidad podrá ser reemplazada o retirada cuando existan razones técnicas, operativas, de seguridad o de evolución del producto.
+
+Cuando un cambio pueda afectar de manera significativa una funcionalidad esencial del plan contratado, Myracore Services procurará comunicarlo previamente al cliente cuando resulte razonablemente posible.
+
+---
+
+## 13. PRECIOS Y MODIFICACIÓN DE PLANES
+
+Los precios de Vrete corresponden a los establecidos al momento de la contratación o renovación de la membresía.
+
+Debido a factores económicos, tecnológicos, operativos, de infraestructura, mantenimiento, almacenamiento, seguridad, servicios de terceros y evolución del producto, los precios de Vrete podrán ser modificados en el futuro.
+
+Cualquier modificación de precio aplicable a una renovación deberá ser comunicada al cliente con anticipación razonable.
+
+El cliente podrá decidir si continúa utilizando el servicio bajo el nuevo precio o solicita la cancelación de su membresía antes de que el nuevo precio entre en vigencia, de acuerdo con las condiciones de cancelación aplicables.
+
+Los cambios de precio no modificarán retroactivamente períodos que ya hayan sido pagados.
+
+---
+
+## 14. PAGOS Y SUSPENSIÓN DEL SERVICIO
+
+La membresía deberá ser pagada de acuerdo con la periodicidad y precio correspondientes al plan contratado.
+
+En caso de falta de pago, Myracore Services podrá limitar o suspender temporalmente el acceso al servicio, previa comunicación al cliente cuando corresponda.
+
+La suspensión por falta de pago no implica necesariamente la eliminación inmediata de la información asociada a la cuenta.
+
+Durante un período de suspensión, el cliente podrá regularizar su situación para solicitar la reactivación del servicio, conforme a las condiciones vigentes.
+
+---
+
+## 15. CANCELACIÓN DE LA MEMBRESÍA
+
+El cliente podrá solicitar la cancelación de su membresía de acuerdo con las condiciones vigentes del servicio.
+
+Al finalizar la membresía, el acceso a Vrete podrá ser suspendido.
+
+Myracore Services podrá establecer un período razonable durante el cual la información del cliente permanezca disponible para facilitar su exportación o recuperación, cuando técnicamente sea posible.
+
+Una vez transcurrido dicho período, la información podrá ser eliminada de los sistemas activos y, posteriormente, de respaldos conforme a los ciclos técnicos de conservación existentes.
+
+El cliente es responsable de solicitar y conservar oportunamente cualquier información que necesite antes de la cancelación definitiva de su cuenta.
+
+---
+
+## 16. USO INDEBIDO DEL SISTEMA
+
+El cliente se compromete a utilizar Vrete exclusivamente para fines lícitos y relacionados con las actividades para las cuales fue contratado.
+
+Está prohibido:
+
+- Intentar acceder a cuentas o información de terceros.
+- Intentar vulnerar la seguridad de la plataforma.
+- Realizar ingeniería inversa del sistema.
+- Introducir código malicioso.
+- Utilizar la plataforma para actividades ilícitas.
+- Compartir cuentas de forma que permita evadir las condiciones del plan.
+- Realizar actividades que afecten deliberadamente la disponibilidad del servicio.
+- Utilizar la plataforma para acceder, recopilar o modificar información de otros clientes.
+- Utilizar mecanismos automatizados para evadir límites técnicos o comerciales.
+- Intentar alterar, manipular o eliminar registros sin autorización.
+
+Ante actividades que puedan representar un riesgo para la seguridad, integridad o funcionamiento de Vrete, Myracore Services podrá adoptar medidas preventivas, incluyendo la suspensión temporal de una cuenta, procurando informar al cliente cuando las circunstancias lo permitan.
+
+---
+
+## 17. RESPONSABILIDAD POR EL USO DE LA PLATAFORMA
+
+El cliente es responsable de las decisiones que tome utilizando la información disponible en Vrete.
+
+Vrete proporciona herramientas de gestión, organización, registro y análisis, pero no garantiza que el uso de dichas herramientas produzca determinados resultados productivos, reproductivos, sanitarios, económicos, administrativos o comerciales.
+
+Myracore Services no será responsable por decisiones tomadas exclusivamente por el cliente o sus usuarios utilizando información registrada, generada o visualizada mediante la plataforma, sin perjuicio de las responsabilidades que legalmente correspondan al proveedor.
+
+---
+
+## 18. LIMITACIÓN RAZONABLE DE RESPONSABILIDAD
+
+Myracore Services será responsable por sus propias obligaciones conforme al servicio contratado y a la normativa aplicable.
+
+No obstante, no será responsable por daños o interrupciones que sean consecuencia directa de circunstancias ajenas a su control razonable, del uso incorrecto de la plataforma por parte del cliente, de credenciales compartidas o comprometidas por responsabilidad del cliente, de información incorrectamente ingresada por los usuarios, de fallas de los dispositivos del cliente, de problemas de conectividad del cliente o de servicios externos que no se encuentren bajo su control.
+
+Ninguna disposición de estas condiciones pretende excluir o limitar responsabilidades que legalmente no puedan ser excluidas o limitadas.
+
+---
+
+## 19. PROPIEDAD INTELECTUAL
+
+Vrete, incluyendo su software, código, diseño, interfaz, estructura, marca, logotipos, documentación, funcionalidades y demás elementos desarrollados por Myracore Services, son propiedad de Myracore Services o se utilizan bajo las autorizaciones correspondientes.
+
+La contratación de una membresía otorga al cliente únicamente un derecho de uso de la plataforma durante el período contratado.
+
+La membresía no implica la transferencia de propiedad intelectual, código fuente ni derechos de explotación sobre Vrete.
+
+La información introducida por el cliente continúa siendo responsabilidad y, cuando corresponda, propiedad del cliente.
+
+---
+
+## 20. PRIVACIDAD Y DATOS
+
+Myracore Services tratará la información a la que tenga acceso en relación con la prestación del servicio de acuerdo con la normativa aplicable y las políticas de privacidad correspondientes.
+
+El cliente deberá garantizar que cuenta con las autorizaciones y fundamentos necesarios para introducir y administrar datos personales de terceros dentro de Vrete.
+
+Cuando la plataforma sea utilizada para almacenar información relacionada con trabajadores, proveedores, clientes u otras personas, el cliente deberá adoptar las medidas internas necesarias para garantizar que únicamente personas autorizadas puedan acceder a dicha información.
+
+---
+
+## 21. MODIFICACIONES A ESTAS CONDICIONES
+
+Estas condiciones podrán ser actualizadas cuando resulte necesario para reflejar cambios legales, técnicos, operativos, comerciales o funcionales del servicio.
+
+Cada versión de estas condiciones tendrá asociada una identificación o número de versión y una fecha de entrada en vigencia.
+
+Las modificaciones relevantes serán comunicadas por medios razonables antes de su aplicación.
+
+Cuando una nueva versión requiera aceptación expresa, Vrete podrá solicitar nuevamente la aceptación de estas condiciones antes de permitir al usuario continuar utilizando la plataforma.
+
+El uso continuado de Vrete después de la entrada en vigencia de nuevas condiciones constituirá aceptación de las mismas únicamente cuando ello sea legalmente procedente y cuando no se requiera una aceptación expresa.
+
+---
+
+## 22. ACEPTACIÓN ELECTRÓNICA Y REGISTRO DE LA ACEPTACIÓN
+
+El cliente y sus usuarios podrán aceptar estas condiciones mediante mecanismos electrónicos habilitados dentro de Vrete.
+
+La aceptación electrónica podrá quedar registrada junto con información asociada al acto de aceptación, incluyendo, cuando técnicamente corresponda:
+
+- Usuario que realizó la aceptación.
+- Fecha y hora de aceptación.
+- Versión del documento aceptado.
+- Identificador de la cuenta u organización.
+- Otros datos técnicos necesarios para acreditar el acto de aceptación.
+
+La aceptación de una versión anterior no implica automáticamente la aceptación de una versión posterior cuando Vrete requiera una nueva aceptación expresa.
+
+Cuando una nueva versión de estas condiciones sea marcada como obligatoria, el usuario correspondiente deberá aceptarla antes de continuar utilizando las funcionalidades de Vrete que requieran dicha aceptación.
+
+---
+
+## 23. SOPORTE TÉCNICO
+
+El soporte técnico será prestado de acuerdo con las condiciones correspondientes al plan contratado y los canales habilitados por Vrete.
+
+El soporte comprende asistencia relacionada con el funcionamiento de la plataforma.
+
+No comprende necesariamente capacitación ilimitada, configuración de equipos del cliente, reparación de dispositivos, solución de problemas de Internet del cliente, recuperación de información eliminada por usuarios ni servicios profesionales ajenos al funcionamiento de Vrete, salvo que hayan sido contratados expresamente.
+
+---
+
+## 24. FUERZA MAYOR Y CASO FORTUITO
+
+Myracore Services no será responsable por incumplimientos o interrupciones ocasionados por acontecimientos que razonablemente escapen de su control, tales como desastres naturales, incendios, cortes generalizados de energía, interrupciones de infraestructura, ataques informáticos de terceros, conflictos sociales, bloqueos, actos de autoridad, fallas generalizadas de proveedores tecnológicos u otros acontecimientos similares.
+
+Myracore Services procurará restablecer el servicio y adoptar medidas razonables para reducir los efectos de dichos acontecimientos.
+
+---
+
+## 25. ACEPTACIÓN DEL CLIENTE Y SUS USUARIOS
+
+Al contratar Vrete, el cliente declara que:
+
+- Ha leído estas condiciones.
+- Ha comprendido el funcionamiento general del servicio.
+- Conoce las características y limitaciones del plan contratado.
+- Comprende que Vrete es una herramienta tecnológica y no sustituye el criterio profesional de sus usuarios.
+- Se compromete a proteger sus credenciales y administrar adecuadamente sus usuarios.
+- Comprende que la información registrada en Vrete es responsabilidad del cliente y sus usuarios autorizados.
+- Comprende que ningún sistema tecnológico puede garantizar disponibilidad, seguridad o recuperación absoluta de información en todas las circunstancias.
+- Se compromete a mantener copias de seguridad adicionales de la información que considere crítica.
+- Acepta las condiciones económicas y de renovación correspondientes a su membresía.
+- Se compromete a utilizar la plataforma de acuerdo con estas condiciones y la legislación aplicable.
+
+Cada usuario deberá aceptar electrónicamente la versión de las condiciones que Vrete determine como vigente y obligatoria para poder continuar utilizando la plataforma cuando corresponda.
+
+---
+
+## 26. CONFORMIDAD Y ACEPTACIÓN

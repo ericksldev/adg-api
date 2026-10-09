@@ -7,6 +7,7 @@ import { createCorralWorkSessionModel } from '../models/corral-work-session.mode
 import { createWorkSessionPlannedActivityModel } from '../models/work-session-planned-activity.model';
 import { createCorralSessionOperationalModels } from '../models/corral-session-operational.models';
 import { createOperationalModels } from '../models/animal-operations.models';
+import { createRecordDeletionAuditModel } from '../models/record-deletion-audit.model';
 import { associateTenantDomainModels, TenantDomainModels } from './tenant-domain-associations';
 
 export function buildTenantModelsForSequelize(sequelize: Sequelize): TenantDomainModels {
@@ -18,6 +19,7 @@ export function buildTenantModelsForSequelize(sequelize: Sequelize): TenantDomai
     const WorkSessionPlannedActivityModel = createWorkSessionPlannedActivityModel(sequelize);
     const corralOps = createCorralSessionOperationalModels(sequelize);
     const ops = createOperationalModels(sequelize);
+    const RecordDeletionAuditModel = createRecordDeletionAuditModel(sequelize);
     const merged = {
         RanchModel,
         AnimalModel,
@@ -25,6 +27,7 @@ export function buildTenantModelsForSequelize(sequelize: Sequelize): TenantDomai
         AnimalWorkSessionModel,
         CorralWorkSessionModel,
         WorkSessionPlannedActivityModel,
+        RecordDeletionAuditModel,
         ...corralOps,
         ...ops,
     };

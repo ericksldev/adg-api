@@ -226,9 +226,10 @@ export interface AnimalMovementAttributes {
     movement_date: Date;
     movement_reason?: string | null;
     description?: string | null;
+    uuid_corral_work_session?: string | null;
     is_active: boolean;
 }
-export type AnimalMovementCreationAttributes = Optional<AnimalMovementAttributes, 'animal_movement_uuid' | 'origin_paddock_uuid' | 'destination_paddock_uuid' | 'movement_reason' | 'description' | 'is_active'>;
+export type AnimalMovementCreationAttributes = Optional<AnimalMovementAttributes, 'animal_movement_uuid' | 'origin_paddock_uuid' | 'destination_paddock_uuid' | 'movement_reason' | 'description' | 'uuid_corral_work_session' | 'is_active'>;
 
 export interface OwnerAttributes {
     owner_uuid: string;

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.associateTenantDomainModels = associateTenantDomainModels;
 function associateTenantDomainModels(m) {
-    const { RanchModel, AnimalModel, AnimalLegacyModel, CorralWorkSessionModel, WorkSessionPlannedActivityModel, CorralSessionStepModel, CorralStepActivityModel, CorralSessionSourceModel, CorralSessionAnimalModel, CorralActivityRecordModel, CorralAnimalObservationModel, CorralAnimalVisualConditionModel, CorralAnimalAdditionalMedicationModel, CorralAnimalAdditionalTreatmentModel, AnimalWorkSessionModel, WorkOrderModel, WorkOrderAnimalModel, MilkingSessionModel, MilkRecordModel, AnimalPurchaseModel, AnimalSaleModel, AnimalDisposalModel, InventoryItemModel, PregnancyCheckModel, AbortionModel, HealthCampaignModel, HealthCampaignTreatmentModel, HealthCampaignAnimalModel, MedicineModel, InseminationModel, NaturalBreedingSeasonModel, NaturalBreedingBullModel, NaturalBreedingFemaleModel, RanchProductionTypeModel, PaddockModel, AnimalMovementModel, OwnerModel, AnimalOwnerTransferModel, AnimalIdentificationModel, WeightRecordModel, BirthModel, } = m;
+    const { RanchModel, AnimalModel, AnimalLegacyModel, CorralWorkSessionModel, WorkSessionPlannedActivityModel, CorralSessionStepModel, CorralStepActivityModel, CorralSessionSourceModel, CorralSessionAnimalModel, CorralStepAnimalModel, CorralActivityRecordModel, CorralAnimalObservationModel, CorralAnimalVisualConditionModel, CorralAnimalAdditionalMedicationModel, CorralAnimalAdditionalTreatmentModel, AnimalWorkSessionModel, WorkOrderModel, WorkOrderAnimalModel, MilkingSessionModel, MilkRecordModel, AnimalPurchaseModel, AnimalSaleModel, AnimalDisposalModel, InventoryItemModel, PregnancyCheckModel, AbortionModel, HealthCampaignModel, HealthCampaignTreatmentModel, HealthCampaignAnimalModel, MedicineModel, InseminationModel, NaturalBreedingSeasonModel, NaturalBreedingBullModel, NaturalBreedingFemaleModel, RanchProductionTypeModel, PaddockModel, AnimalMovementModel, OwnerModel, AnimalOwnerTransferModel, AnimalIdentificationModel, WeightRecordModel, BirthModel, } = m;
     RanchModel.hasMany(AnimalModel, {
         foreignKey: 'ranch_uuid',
         as: 'animals',
@@ -412,6 +412,18 @@ function associateTenantDomainModels(m) {
         as: 'session_animals',
     });
     CorralSessionAnimalModel.belongsTo(AnimalModel, {
+        foreignKey: 'animal_uuid',
+        as: 'animal',
+    });
+    CorralSessionStepModel.hasMany(CorralStepAnimalModel, {
+        foreignKey: 'uuid_corral_session_step',
+        as: 'step_animals',
+    });
+    CorralStepAnimalModel.belongsTo(CorralSessionStepModel, {
+        foreignKey: 'uuid_corral_session_step',
+        as: 'step',
+    });
+    CorralStepAnimalModel.belongsTo(AnimalModel, {
         foreignKey: 'animal_uuid',
         as: 'animal',
     });

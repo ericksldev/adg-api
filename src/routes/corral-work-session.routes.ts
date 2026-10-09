@@ -10,6 +10,11 @@ corralWorkSessionRoutes.get(
     authorize(Permission.ANIMAL_WORK_SESSION_READ),
     container.corralWorkSessionController.getAll
 );
+corralWorkSessionRoutes.get(
+    '/pending-registrations',
+    authorize(Permission.ANIMAL_WORK_SESSION_READ),
+    container.corralWorkSessionController.listPendingAnimalRegistrations
+);
 corralWorkSessionRoutes.post(
     '/',
     authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
@@ -29,6 +34,11 @@ corralWorkSessionRoutes.post(
     '/:uuid_corral_work_session/steps/:uuid_corral_session_step/scan-animal',
     authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
     container.corralWorkSessionController.scanStepAnimal
+);
+corralWorkSessionRoutes.post(
+    '/:uuid_corral_work_session/steps/:uuid_corral_session_step/unregistered-animals',
+    authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.addUnregisteredStepAnimal
 );
 corralWorkSessionRoutes.post(
     '/:uuid_corral_work_session/animals/preview',
@@ -60,6 +70,11 @@ corralWorkSessionRoutes.get(
     authorize(Permission.ANIMAL_WORK_SESSION_READ),
     container.corralWorkSessionController.lookupAnimal
 );
+corralWorkSessionRoutes.get(
+    '/:uuid_corral_work_session/animals/:animal_uuid/history',
+    authorize(Permission.ANIMAL_WORK_SESSION_READ),
+    container.corralWorkSessionController.getAnimalWorkHistory
+);
 corralWorkSessionRoutes.post(
     '/:uuid_corral_work_session/findings',
     authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
@@ -69,6 +84,11 @@ corralWorkSessionRoutes.put(
     '/:uuid_corral_work_session/steps/:uuid_corral_session_step/grid',
     authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
     container.corralWorkSessionController.saveStepGrid
+);
+corralWorkSessionRoutes.post(
+    '/:uuid_corral_work_session/steps/:uuid_corral_session_step/paddock-distribution',
+    authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.applyPaddockDistribution
 );
 corralWorkSessionRoutes.post(
     '/:uuid_corral_work_session/start',

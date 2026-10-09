@@ -104,6 +104,7 @@ export interface CorralStepAnimalAttributes {
     uuid_corral_work_session: string;
     uuid_corral_session_step: string;
     animal_uuid: string;
+    scanned_at?: Date | null;
     is_active: boolean;
     created_at?: Date;
     updated_at?: Date;
@@ -288,7 +289,7 @@ export interface CorralStepGridColumnDto {
     activity_code: CorralActivityCode;
     column_key: string;
     label: string;
-    value_type: 'boolean' | 'number' | 'text' | 'medicine';
+    value_type: 'boolean' | 'number' | 'text' | 'medicine' | 'paddock_current' | 'paddock_destination';
 }
 
 export interface CorralStepGridDto {
@@ -299,13 +300,69 @@ export interface CorralStepGridDto {
     columns: CorralStepGridColumnDto[];
     rows: CorralStepGridRowDto[];
     animal_count: number;
+    scanned_animal_uuids?: string[];
 }
 
 export interface CorralStepGridRowDto {
     animal_uuid: string;
     registration_number: string;
     chip_number?: string | null;
+    missing_inventory?: boolean;
+    current_paddock_uuid?: string | null;
+    current_paddock_name?: string | null;
+    session_origin_paddock_name?: string | null;
+    session_destination_paddock_name?: string | null;
     values: Record<string, string | number | boolean | string[] | null>;
+}
+
+export interface ApplyPaddockDistributionMove {
+    animal_uuid: string;
+    destination_paddock_uuid: string;
+}
+
+export interface ApplyPaddockDistributionBody {
+    moves: ApplyPaddockDistributionMove[];
+}
+
+export interface PaddockCapacityWarningDto {
+    paddock_uuid: string;
+    paddock_name: string;
+    maximum_capacity: number;
+    projected_count: number;
+}
+
+export interface ApplyPaddockDistributionResultDto {
+    moved_count: number;
+    capacity_warnings: PaddockCapacityWarningDto[];
+    session_status: CorralWorkSessionStatus;
+    grid: CorralStepGridDto;
+}
+
+export interface PendingAnimalRegistrationSessionDto {
+    uuid_corral_work_session: string;
+    work_date: string;
+    responsible_person: string | null;
+    status: string;
+}
+
+export interface PendingAnimalRegistrationDto {
+    registration_number: string;
+    ranch_uuid: string;
+    first_seen_at: string;
+    last_seen_at: string;
+    sessions: PendingAnimalRegistrationSessionDto[];
+}
+
+export interface CorralUnregisteredStepRowAttributes {
+    uuid_corral_unregistered_step_row: string;
+    uuid_corral_work_session: string;
+    uuid_corral_session_step: string;
+    registration_number: string;
+    cell_values: Record<string, string | number | boolean | string[] | null>;
+    scanned_at?: Date | null;
+    is_active: boolean;
+    created_at?: Date;
+    updated_at?: Date;
 }
 
 export interface CorralSessionWorkspaceDto {
@@ -326,8 +383,11 @@ export interface CorralSessionWorkspaceDto {
 export interface SaveCorralStepGridBody {
     rows: Array<{
         animal_uuid: string;
+        registration_number?: string;
+        missing_inventory?: boolean;
         values: Record<string, string | number | boolean | string[] | null>;
     }>;
+    scanned_animal_uuids?: string[];
 }
 
 export interface UpsertCorralFindingBody {
@@ -345,6 +405,52 @@ export interface UpsertCorralFindingBody {
         treatment_type: string;
         description?: string | null;
     }>;
+}
+
+export interface AnimalCorralWorkHistoryActivityDto {
+    activity_code: CorralActivityCode | string;
+    values: string[];
+}
+
+export interface AnimalCorralWorkHistorySessionDto {
+    uuid_corral_work_session: string;
+    work_date: string;
+    status: CorralWorkSessionStatus;
+    responsible_person?: string | null;
+    activities: AnimalCorralWorkHistoryActivityDto[];
+    observations: string[];
+    condition_codes: CorralVisualConditionCode[];
+    medications: string[];
+    treatments: string[];
+}
+
+export interface AnimalCorralProfileDto {
+    animal_uuid: string;
+    registration_number: string;
+    chip_number?: string | null;
+    sex: string;
+    breed_code?: string | null;
+    color?: string | null;
+    birth_date: string;
+    origin_type: string;
+    paddock_name?: string | null;
+}
+
+export interface AnimalCorralWorkHistoryDto {
+    animal_uuid: string;
+    registration_number: string;
+    chip_number?: string | null;
+    profile: AnimalCorralProfileDto;
+    sessions: AnimalCorralWorkHistorySessionDto[];
+}
+
+export interface AnimalWorkHistorySource {
+    sessions: CorralWorkSessionAttributes[];
+    records: CorralActivityRecordAttributes[];
+    observations: CorralAnimalObservationAttributes[];
+    conditions: CorralAnimalVisualConditionAttributes[];
+    medications: CorralAnimalAdditionalMedicationAttributes[];
+    treatments: CorralAnimalAdditionalTreatmentAttributes[];
 }
 
 export interface CorralSessionDetailDto extends CorralWorkSessionAttributes {

@@ -19,6 +19,7 @@ function createCorralSessionOperationalModels(sequelize) {
         uuid_corral_work_session: { type: sequelize_1.DataTypes.UUID, allowNull: false },
         step_order: { type: sequelize_1.DataTypes.INTEGER, allowNull: false },
         label: { type: sequelize_1.DataTypes.STRING(128), allowNull: true },
+        work_mode: { type: sequelize_1.DataTypes.STRING(32), allowNull: false, defaultValue: 'PRELOADED_SEARCH' },
         is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'corral_session_steps', 'CorralSessionStep');
     class CorralStepActivityModel extends sequelize_1.Model {
@@ -53,6 +54,16 @@ function createCorralSessionOperationalModels(sequelize) {
         is_expected: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
         is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'corral_session_animals', 'CorralSessionAnimal');
+    class CorralStepAnimalModel extends sequelize_1.Model {
+    }
+    initCorralModel(sequelize, CorralStepAnimalModel, {
+        uuid_corral_step_animal: { type: sequelize_1.DataTypes.UUID, defaultValue: sequelize_1.DataTypes.UUIDV4, primaryKey: true },
+        uuid_corral_work_session: { type: sequelize_1.DataTypes.UUID, allowNull: false },
+        uuid_corral_session_step: { type: sequelize_1.DataTypes.UUID, allowNull: false },
+        animal_uuid: { type: sequelize_1.DataTypes.UUID, allowNull: false },
+        scanned_at: { type: sequelize_1.DataTypes.DATE, allowNull: true },
+        is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    }, 'corral_step_animals', 'CorralStepAnimal');
     class CorralActivityRecordModel extends sequelize_1.Model {
     }
     initCorralModel(sequelize, CorralActivityRecordModel, {
@@ -104,6 +115,17 @@ function createCorralSessionOperationalModels(sequelize) {
         unit: { type: sequelize_1.DataTypes.STRING(32), allowNull: true },
         is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'corral_animal_additional_medications', 'CorralAnimalAdditionalMedication');
+    class CorralUnregisteredStepRowModel extends sequelize_1.Model {
+    }
+    initCorralModel(sequelize, CorralUnregisteredStepRowModel, {
+        uuid_corral_unregistered_step_row: { type: sequelize_1.DataTypes.UUID, defaultValue: sequelize_1.DataTypes.UUIDV4, primaryKey: true },
+        uuid_corral_work_session: { type: sequelize_1.DataTypes.UUID, allowNull: false },
+        uuid_corral_session_step: { type: sequelize_1.DataTypes.UUID, allowNull: false },
+        registration_number: { type: sequelize_1.DataTypes.STRING(128), allowNull: false },
+        cell_values: { type: sequelize_1.DataTypes.JSONB, allowNull: false, defaultValue: {} },
+        scanned_at: { type: sequelize_1.DataTypes.DATE, allowNull: true },
+        is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    }, 'corral_unregistered_step_rows', 'CorralUnregisteredStepRow');
     class CorralAnimalAdditionalTreatmentModel extends sequelize_1.Model {
     }
     initCorralModel(sequelize, CorralAnimalAdditionalTreatmentModel, {
@@ -120,10 +142,12 @@ function createCorralSessionOperationalModels(sequelize) {
         CorralStepActivityModel,
         CorralSessionSourceModel,
         CorralSessionAnimalModel,
+        CorralStepAnimalModel,
         CorralActivityRecordModel,
         CorralAnimalObservationModel,
         CorralAnimalVisualConditionModel,
         CorralAnimalAdditionalMedicationModel,
         CorralAnimalAdditionalTreatmentModel,
+        CorralUnregisteredStepRowModel,
     };
 }

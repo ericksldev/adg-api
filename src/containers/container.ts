@@ -16,6 +16,8 @@ import AnimalWorkSessionController from "../controllers/animal-work-session.cont
 import CorralSessionRepository from "../repositories/corral-session.repository";
 import CorralSessionHistorySyncService from "../services/corral-session-history-sync.service";
 import CorralWorkSessionService from "../services/corral-work-session.service";
+import AnimalMovementRepository from "../repositories/animal-movement.repository";
+import AnimalMovementService from "../services/animal-movement.service";
 import CorralWorkSessionController from "../controllers/corral-work-session.controller";
 import AuthenticationRepository from "../repositories/authentication.repository";
 import AuthenticationController from "../controllers/authentication.controller";
@@ -41,6 +43,18 @@ import PaddockService from "../services/paddock.service";
 import PaddockController from "../controllers/paddock.controller";
 import HealthService from "../services/health.service";
 import HealthController from "../controllers/health.controller";
+import AnimalAttendanceRepository from "../repositories/animal-attendance.repository";
+import AnimalAttendanceService from "../services/animal-attendance.service";
+import AnimalAttendanceController from "../controllers/animal-attendance.controller";
+import SaasPlanRepository from "../repositories/saas-plan.repository";
+import SaasPlanService from "../services/saas-plan.service";
+import SaasPlanController from "../controllers/saas-plan.controller";
+import TermsAcceptanceRepository from "../repositories/terms-acceptance.repository";
+import TermsAcceptanceService from "../services/terms-acceptance.service";
+import TermsAcceptanceController from "../controllers/terms-acceptance.controller";
+import RecordPurgeRepository from "../repositories/record-purge.repository";
+import RecordPurgeService from "../services/record-purge.service";
+import RecordPurgeController from "../controllers/record-purge.controller";
 
 //Repositories
 const companyRepository = new CompanyRepository();
@@ -50,39 +64,67 @@ const animalRepository = new AnimalRepository();
 const animalWorkSessionRepository = new AnimalWorkSessionRepository();
 const corralSessionRepository = new CorralSessionRepository();
 const corralSessionHistorySyncService = new CorralSessionHistorySyncService();
+const animalMovementRepository = new AnimalMovementRepository();
+const animalMovementService = new AnimalMovementService(animalMovementRepository);
 const sessionRepository = new SessionRepository();
 const authenticationRepository = new AuthenticationRepository();
 const membershipRepository = new MembershipRepository();
 const referenceSampleRepository = new ReferenceSampleRepository();
 const companyPaymentRepository = new CompanyPaymentRepository();
+const saasPlanRepository = new SaasPlanRepository();
 const ownerRepository = new OwnerRepository();
 const paddockRepository = new PaddockRepository();
 
 //Services
 const passwordValidatorService = new PasswordValidatorService();
 const tenantProvisioningService = new TenantProvisioningService();
-const companyService = new CompanyService(companyRepository, companyPaymentRepository, tenantProvisioningService);
-const userService = new UserService(userRepository, userRepository, companyService, passwordValidatorService);
+const saasPlanService = new SaasPlanService(saasPlanRepository, companyRepository);
+const companyService = new CompanyService(
+    companyRepository,
+    companyPaymentRepository,
+    tenantProvisioningService,
+    saasPlanService
+);
+const userService = new UserService(
+    userRepository,
+    userRepository,
+    companyService,
+    passwordValidatorService,
+    saasPlanService
+);
 const paddockService = new PaddockService(paddockRepository, ranchRepository);
 const ranchService = new RanchService(ranchRepository, paddockRepository);
-const animalService = new AnimalService(animalRepository, companyService);
+const animalService = new AnimalService(animalRepository, companyService, saasPlanService);
 const animalWorkSessionService = new AnimalWorkSessionService(animalWorkSessionRepository);
 const corralWorkSessionService = new CorralWorkSessionService(
     corralSessionRepository,
-    corralSessionHistorySyncService
+    corralSessionHistorySyncService,
+    animalMovementService,
+    saasPlanService
 );
 const sessionService = new SessionService(sessionRepository);
+const termsAcceptanceRepository = new TermsAcceptanceRepository();
+const termsAcceptanceService = new TermsAcceptanceService(termsAcceptanceRepository);
 const authenticationService = new AuthenticationService(
     authenticationRepository,
     sessionService,
     userService,
-    membershipRepository
+    membershipRepository,
+    termsAcceptanceService
 );
 const membershipService = new MembershipService(userService, ranchService);
 const referenceSampleService = new ReferenceSampleService(referenceSampleRepository);
-const companyPaymentService = new CompanyPaymentService(companyPaymentRepository, companyService);
+const companyPaymentService = new CompanyPaymentService(
+    companyPaymentRepository,
+    companyService,
+    saasPlanService
+);
 const ownerService = new OwnerService(ownerRepository);
 const healthService = new HealthService();
+const animalAttendanceRepository = new AnimalAttendanceRepository();
+const animalAttendanceService = new AnimalAttendanceService(animalAttendanceRepository);
+const recordPurgeRepository = new RecordPurgeRepository();
+const recordPurgeService = new RecordPurgeService(recordPurgeRepository);
 
 //Controllers
 const userController = new UserController(userService, userService);
@@ -98,6 +140,10 @@ const companyPaymentController = new CompanyPaymentController(companyPaymentServ
 const ownerController = new OwnerController(ownerService);
 const paddockController = new PaddockController(paddockService);
 const healthController = new HealthController(healthService);
+const animalAttendanceController = new AnimalAttendanceController(animalAttendanceService);
+const saasPlanController = new SaasPlanController(saasPlanService);
+const termsAcceptanceController = new TermsAcceptanceController(termsAcceptanceService);
+const recordPurgeController = new RecordPurgeController(recordPurgeService);
 
 export { membershipRepository };
 
@@ -114,5 +160,10 @@ export const container = {
     companyPaymentController,
     ownerController,
     paddockController,
-    healthController
+    healthController,
+    animalAttendanceController,
+    saasPlanController,
+    termsAcceptanceController,
+    termsAcceptanceService,
+    recordPurgeController
 }

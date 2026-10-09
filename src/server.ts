@@ -3,6 +3,8 @@ import saasSequelize from './database/saas-sequelize';
 import {envConfig} from "./config";
 import './database/saas-models.register';
 import { seedSaasOwnerIfNeeded } from './bootstrap/seed-saas-owner';
+import { ensureSaasPlanCatalog } from './bootstrap/ensure-saas-plan-catalog';
+import { ensureInitialTermsVersion } from './bootstrap/ensure-initial-terms-version';
 
 process.on('uncaughtException', (err) => {
     console.error('uncaughtException:', err);
@@ -20,6 +22,8 @@ saasSequelize.authenticate()
         }
         return saasSequelize.sync({ alter: syncAlter });
     })
+    .then(() => ensureSaasPlanCatalog(saasSequelize))
+    .then(() => ensureInitialTermsVersion(saasSequelize))
     .then(() => seedSaasOwnerIfNeeded())
     .then(() => {
         const port = Number(envConfig.PORT) || 3010;
@@ -28,7 +32,7 @@ saasSequelize.authenticate()
         });
     })
     .catch((err: Error) => {
-        console.error('Unable to connect to database:', err.message);
+        console.error('Startup failed:', err.message);
         process.exit(1);
     });
 

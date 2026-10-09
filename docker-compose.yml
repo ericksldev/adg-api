@@ -3,12 +3,12 @@
 #
 # PostgreSQL: the API user (DB_USER) must be allowed to CREATE DATABASE for per-company tenant DBs.
 
-name: adg-api
+name: vrete-api
 
 services:
   postgres:
     image: postgres:15
-    container_name: adg-api-postgres
+    container_name: vrete-api-postgres
     restart: "no"
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
@@ -28,13 +28,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: adg-api
+    container_name: vrete-api
     restart: unless-stopped
     ports:
       - "${API_HOST_PORT}:3010"
       - "${NODE_DEBUG_HOST_PORT}:9230"
     environment:
-      NODE_ENV: ${NODE_ENV}
+      NODE_ENV: development
       PORT: ${PORT}
       DB_HOST: postgres
       DB_PORT: "5432"
@@ -56,12 +56,16 @@ services:
     command: npm run dev:debug
     volumes:
       - .:/app
-      - adg_api_node_modules:/app/node_modules
+      - vrete_api_node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
   postgres_data:
+    external: true
     name: ${POSTGRES_DOCKER_VOLUME}
-  adg_api_node_modules:
+  vrete_api_node_modules:
+    # Existing volume. The Docker volume rename is deferred.
+    external: true
+    name: adg-api_adg_api_node_modules

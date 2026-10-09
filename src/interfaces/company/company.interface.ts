@@ -1,5 +1,6 @@
 import { Optional } from "sequelize";
 import { BillingCycle, CompanyPlanType, MembershipStatus } from "../../constants/domain.constants";
+import { CompanyPlanSummary } from "../saas-plan/saas-plan.interface";
 
 export interface CompanyAttributes {
     uuid_company: string;
@@ -11,6 +12,12 @@ export interface CompanyAttributes {
     /** Schema revision applied to the tenant database; see TENANT_SCHEMA_VERSION. */
     tenant_schema_version?: number | null;
     plan_type: CompanyPlanType;
+    /** Limits locked for the current subscription. Null until the first subscription. */
+    max_users?: number | null;
+    max_animals?: number | null;
+    max_activity_records?: number | null;
+    /** Catalog snapshot for responses. Not a companies column. */
+    plan?: CompanyPlanSummary | null;
     billing_cycle: BillingCycle;
     membership_status: MembershipStatus;
     membership_started_at?: Date | null;
@@ -26,6 +33,9 @@ export type CompanyCreationAttributes = Optional<
     | 'tenant_database'
     | 'tenant_schema_version'
     | 'plan_type'
+    | 'max_users'
+    | 'max_animals'
+    | 'max_activity_records'
     | 'billing_cycle'
     | 'membership_status'
     | 'membership_started_at'

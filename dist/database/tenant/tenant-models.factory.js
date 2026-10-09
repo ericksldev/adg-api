@@ -9,6 +9,7 @@ const corral_work_session_model_1 = require("../models/corral-work-session.model
 const work_session_planned_activity_model_1 = require("../models/work-session-planned-activity.model");
 const corral_session_operational_models_1 = require("../models/corral-session-operational.models");
 const animal_operations_models_1 = require("../models/animal-operations.models");
+const record_deletion_audit_model_1 = require("../models/record-deletion-audit.model");
 const tenant_domain_associations_1 = require("./tenant-domain-associations");
 function buildTenantModelsForSequelize(sequelize) {
     const RanchModel = (0, ranch_model_1.createRanchModel)(sequelize);
@@ -19,6 +20,7 @@ function buildTenantModelsForSequelize(sequelize) {
     const WorkSessionPlannedActivityModel = (0, work_session_planned_activity_model_1.createWorkSessionPlannedActivityModel)(sequelize);
     const corralOps = (0, corral_session_operational_models_1.createCorralSessionOperationalModels)(sequelize);
     const ops = (0, animal_operations_models_1.createOperationalModels)(sequelize);
+    const RecordDeletionAuditModel = (0, record_deletion_audit_model_1.createRecordDeletionAuditModel)(sequelize);
     const merged = {
         RanchModel,
         AnimalModel,
@@ -26,6 +28,7 @@ function buildTenantModelsForSequelize(sequelize) {
         AnimalWorkSessionModel,
         CorralWorkSessionModel,
         WorkSessionPlannedActivityModel,
+        RecordDeletionAuditModel,
         ...corralOps,
         ...ops,
     };

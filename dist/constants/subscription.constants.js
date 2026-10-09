@@ -1,32 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PLAN_HEAD_LIMIT = exports.PLAN_ANNUAL_PRICE_USD = void 0;
-exports.normalizeCompanyPlanType = normalizeCompanyPlanType;
+exports.resolveCompanyPlanCode = resolveCompanyPlanCode;
 exports.normalizeBillingCycle = normalizeBillingCycle;
-exports.getSubscriptionChargeUsd = getSubscriptionChargeUsd;
+exports.chargeForBillingCycle = chargeForBillingCycle;
 const domain_constants_1 = require("./domain.constants");
-/** Full-year subscription price in USD (used when billing_cycle is ANNUAL). */
-exports.PLAN_ANNUAL_PRICE_USD = {
-    ESSENTIAL: 399,
-    PROFESSIONAL: 749,
-    ENTERPRISE: 1199
-};
-/** Maximum active animals company-wide (all ranches) per contracted plan tier. */
-exports.PLAN_HEAD_LIMIT = {
-    ESSENTIAL: 300,
-    PROFESSIONAL: 1500,
-    ENTERPRISE: 5000
-};
-const LEGACY_PLAN_MAP = {
-    BASIC: "ESSENTIAL",
-    PREMIUM: "ENTERPRISE",
-    PROFESSIONAL: "PROFESSIONAL"
-};
-function normalizeCompanyPlanType(plan) {
-    if (domain_constants_1.COMPANY_PLAN_TYPES.includes(plan)) {
-        return plan;
-    }
-    return LEGACY_PLAN_MAP[plan] ?? "ESSENTIAL";
+/** Trims a stored or requested plan code. Does not invent a default plan. */
+function resolveCompanyPlanCode(plan) {
+    return String(plan ?? "").trim();
 }
 const LEGACY_BILLING_MAP = {
     MONTHLY: "SEMESTRAL",
@@ -40,14 +20,13 @@ function normalizeBillingCycle(cycle) {
     return LEGACY_BILLING_MAP[cycle] ?? "ANNUAL";
 }
 /**
- * Amount charged for the selected billing period in USD.
- * Semestral = half of the annual list price (six months).
+ * Amount charged for the selected billing period.
+ * Semestral = half of the annual catalog price (six months).
  */
-function getSubscriptionChargeUsd(planType, billingCycle) {
-    const plan = normalizeCompanyPlanType(planType);
-    const annual = exports.PLAN_ANNUAL_PRICE_USD[plan];
+function chargeForBillingCycle(annualPrice, billingCycle) {
+    const annual = Number(annualPrice);
     if (billingCycle === "ANNUAL") {
-        return annual;
+        return Number(annual.toFixed(2));
     }
     return Number((annual / 2).toFixed(2));
 }

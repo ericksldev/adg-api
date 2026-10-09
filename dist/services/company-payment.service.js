@@ -7,11 +7,11 @@ const apiError_1 = __importDefault(require("../errors/apiError"));
 const httpStatusCodes_1 = __importDefault(require("../errors/httpStatusCodes"));
 const models_1 = require("../database/models");
 const domain_constants_1 = require("../constants/domain.constants");
-const subscription_constants_1 = require("../constants/subscription.constants");
 class CompanyPaymentService {
-    constructor(companyPaymentRepository, companyService) {
+    constructor(companyPaymentRepository, companyService, saasPlanService) {
         this.companyPaymentRepository = companyPaymentRepository;
         this.companyService = companyService;
+        this.saasPlanService = saasPlanService;
     }
     calculateNextRenewalDate(fromDate, billingCycle) {
         const renewalDate = new Date(fromDate);
@@ -22,9 +22,6 @@ class CompanyPaymentService {
             renewalDate.setMonth(renewalDate.getMonth() + 6);
         }
         return renewalDate;
-    }
-    calculateActivationAmount(planType, billingCycle) {
-        return (0, subscription_constants_1.getSubscriptionChargeUsd)(planType, billingCycle);
     }
     parseDateField(rawDate, fieldName) {
         const parsed = new Date(String(rawDate));
@@ -37,14 +34,14 @@ class CompanyPaymentService {
         }
         return parsed;
     }
-    validateAndNormalizeActivationPayment(body) {
-        if (!body.plan_type || !domain_constants_1.COMPANY_PLAN_TYPES.includes(body.plan_type)) {
-            throw new apiError_1.default({
-                name: 'ValidationError',
-                statusCode: httpStatusCodes_1.default.BAD_REQUEST,
-                description: 'Valid plan_type is required'
-            });
-        }
+    roundMoney(value) {
+        return Math.round((value + Number.EPSILON) * 100) / 100;
+    }
+    roundExchangeRate(value) {
+        return Math.round((value + Number.EPSILON) * 1000000) / 1000000;
+    }
+    async validateAndNormalizeActivationPayment(body) {
+        const plan = await this.saasPlanService.requireAssignablePlan(body.plan_type);
         if (!body.billing_cycle || !domain_constants_1.BILLING_CYCLES.includes(body.billing_cycle)) {
             throw new apiError_1.default({
                 name: 'ValidationError',
@@ -59,7 +56,7 @@ class CompanyPaymentService {
                 description: 'Valid payment_method is required'
             });
         }
-        const calculatedAmount = this.calculateActivationAmount(body.plan_type, body.billing_cycle);
+        const calculatedAmount = this.saasPlanService.chargeForBillingCycle(plan.annual_price, body.billing_cycle);
         const amount = body.amount !== undefined && body.amount !== null
             ? Number(body.amount)
             : calculatedAmount;
@@ -70,6 +67,16 @@ class CompanyPaymentService {
                 description: 'amount must be a positive number'
             });
         }
+        const exchangeRateRaw = Number(body.exchange_rate);
+        if (!Number.isFinite(exchangeRateRaw) || exchangeRateRaw <= 0) {
+            throw new apiError_1.default({
+                name: 'ValidationError',
+                statusCode: httpStatusCodes_1.default.BAD_REQUEST,
+                description: 'exchange_rate must be a positive number (BOB per 1 USD)'
+            });
+        }
+        const exchangeRate = this.roundExchangeRate(exchangeRateRaw);
+        const amountBob = this.roundMoney(amount * exchangeRate);
         if (body.paid_at === undefined || body.paid_at === null || String(body.paid_at).trim() === '') {
             throw new apiError_1.default({
                 name: 'ValidationError',
@@ -97,7 +104,11 @@ class CompanyPaymentService {
             paidAt,
             periodStart,
             paymentReference: paymentReference.length > 0 ? paymentReference : null,
-            notes: notes.length > 0 ? notes : null
+            notes: notes.length > 0 ? notes : null,
+            planCode: plan.code,
+            currency: plan.currency,
+            exchangeRate,
+            amountBob
         };
     }
     async getAll(params) {
@@ -136,11 +147,18 @@ class CompanyPaymentService {
                 description: 'Company already has an active paid subscription'
             });
         }
-        const normalized = this.validateAndNormalizeActivationPayment(body);
+        const normalized = await this.validateAndNormalizeActivationPayment(body);
+        const limits = await this.saasPlanService.subscriptionLimitsForPlan(normalized.planCode);
         const payload = {
             ...body,
+            plan_type: normalized.planCode,
             amount: normalized.amount,
-            currency: 'USD',
+            currency: normalized.currency,
+            exchange_rate: normalized.exchangeRate,
+            amount_bob: normalized.amountBob,
+            max_users: limits.max_users,
+            max_animals: limits.max_animals,
+            max_activity_records: limits.max_activity_records,
             paid_at: normalized.paidAt,
             period_start: normalized.periodStart,
             payment_reference: normalized.paymentReference,
@@ -156,12 +174,15 @@ class CompanyPaymentService {
             const currentRenewal = company.membership_renewal_at ? new Date(company.membership_renewal_at) : null;
             const baseDate = currentRenewal && currentRenewal > normalized.periodStart ? currentRenewal : normalized.periodStart;
             const nextRenewal = this.calculateNextRenewalDate(baseDate, body.billing_cycle);
-            company.plan_type = body.plan_type;
+            company.plan_type = normalized.planCode;
             company.billing_cycle = body.billing_cycle;
             company.membership_status = 'ACTIVE';
             company.is_active = true;
             company.membership_started_at = normalized.periodStart;
             company.membership_renewal_at = nextRenewal;
+            company.max_users = limits.max_users;
+            company.max_animals = limits.max_animals;
+            company.max_activity_records = limits.max_activity_records;
             await company.save();
             created.period_end = nextRenewal;
             await created.save();

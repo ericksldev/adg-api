@@ -1,8 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.USER_ROLES = exports.PAYMENT_METHODS = exports.PAYMENT_STATUSES = exports.MEMBERSHIP_STATUSES = exports.BILLING_CYCLES = exports.COMPANY_PLAN_TYPES = void 0;
+exports.USER_ROLES = exports.PAYMENT_METHODS = exports.PAYMENT_STATUSES = exports.MEMBERSHIP_STATUSES = exports.BILLING_CYCLES = void 0;
 const roles_interface_1 = require("../interfaces/roles/roles.interface");
-exports.COMPANY_PLAN_TYPES = ['ESSENTIAL', 'PROFESSIONAL', 'ENTERPRISE'];
 exports.BILLING_CYCLES = ['SEMESTRAL', 'ANNUAL'];
 exports.MEMBERSHIP_STATUSES = ['TRIAL', 'ACTIVE', 'CANCELLED'];
 exports.PAYMENT_STATUSES = ['POSTED', 'VOIDED'];

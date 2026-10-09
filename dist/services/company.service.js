@@ -7,17 +7,18 @@ const apiError_1 = __importDefault(require("../errors/apiError"));
 const httpStatusCodes_1 = __importDefault(require("../errors/httpStatusCodes"));
 const company_operational_tenant_helper_1 = require("../helpers/company-operational-tenant.helper");
 class CompanyService {
-    constructor(companyRepository, companyPaymentRepository, tenantProvisioningService) {
+    constructor(companyRepository, companyPaymentRepository, tenantProvisioningService, saasPlanService) {
         this.companyRepository = companyRepository;
         this.companyPaymentRepository = companyPaymentRepository;
         this.tenantProvisioningService = tenantProvisioningService;
+        this.saasPlanService = saasPlanService;
     }
     async getAll(params) {
         const { rows, count } = await this.companyRepository.findAll(params);
         const plainCompanies = rows.map(company => company.get({ plain: true }));
         return {
             success: true,
-            data: plainCompanies,
+            data: await this.withAssignedPlans(plainCompanies),
             pagination: {
                 totalItems: count,
                 totalPages: Math.ceil(count / params.size),
@@ -49,7 +50,7 @@ class CompanyService {
         }
         return {
             success: true,
-            data: refreshed.get({ plain: true })
+            data: await this.withAssignedPlan(refreshed.get({ plain: true }))
         };
     }
     async getById(params) {
@@ -71,7 +72,7 @@ class CompanyService {
         }
         return {
             success: true,
-            data: company.get({ plain: true })
+            data: await this.withAssignedPlan(company.get({ plain: true }))
         };
     }
     async update(uuid_company, companyBody, tenantContext) {
@@ -110,7 +111,7 @@ class CompanyService {
         }
         return {
             success: true,
-            data: updatedCompany.get({ plain: true })
+            data: await this.withAssignedPlan(updatedCompany.get({ plain: true }))
         };
     }
     async delete(uuid_company, tenantContext) {
@@ -164,7 +165,7 @@ class CompanyService {
         }
         return {
             success: true,
-            data: row.get({ plain: true })
+            data: await this.withAssignedPlan(row.get({ plain: true }))
         };
     }
     async endSubscription(uuid_company, tenantContext) {
@@ -208,7 +209,7 @@ class CompanyService {
         }
         return {
             success: true,
-            data: updated.get({ plain: true })
+            data: await this.withAssignedPlan(updated.get({ plain: true }))
         };
     }
     async activateTrial(uuid_company, trialStartDate, trialEndDate, tenantContext) {
@@ -273,7 +274,8 @@ class CompanyService {
             membership_renewal_at: endDate,
             is_active: true
         };
-        const updatedCompany = await this.update(uuid_company, payload, tenantContext);
+        await this.update(uuid_company, payload, tenantContext);
+        const limits = await this.saasPlanService.subscriptionLimitsForPlan(currentCompany.plan_type);
         await this.companyPaymentRepository.create({
             uuid_company,
             amount: 0,
@@ -284,14 +286,53 @@ class CompanyService {
             period_end: endDate,
             plan_type: currentCompany.plan_type,
             billing_cycle: currentCompany.billing_cycle,
+            max_users: limits.max_users,
+            max_animals: limits.max_animals,
+            max_activity_records: limits.max_activity_records,
             status: 'POSTED'
         });
-        return updatedCompany;
+        await this.companyRepository.updateMembershipState(uuid_company, limits, tenantContext);
+        const refreshed = await this.companyRepository.findById({
+            id: uuid_company,
+            uuid_company: tenantContext?.uuid_company
+        });
+        if (!refreshed) {
+            throw new apiError_1.default({
+                name: 'NotFound',
+                statusCode: httpStatusCodes_1.default.NOT_FOUND,
+                description: 'Company not found or inactive'
+            });
+        }
+        return {
+            success: true,
+            data: await this.withAssignedPlan(refreshed.get({ plain: true }))
+        };
+    }
+    async withAssignedPlan(company) {
+        const [withPlan] = await this.withAssignedPlans([company]);
+        return withPlan;
+    }
+    async withAssignedPlans(companies) {
+        const summaries = await this.saasPlanService.findSummariesByCodes(companies.map((company) => company.plan_type));
+        return companies.map((company) => {
+            const summary = this.saasPlanService.summaryForCode(company.plan_type, summaries);
+            const lockedLimits = this.saasPlanService.lockedPlanLimits(company);
+            return {
+                ...company,
+                plan: summary
+                    ? { ...summary, limits: lockedLimits ?? summary.limits }
+                    : null,
+            };
+        });
     }
     buildCompanyPayload(companyBody, currentCompany) {
         const payload = {
             ...companyBody
         };
+        delete payload.plan;
+        delete payload.max_users;
+        delete payload.max_animals;
+        delete payload.max_activity_records;
         const effectiveStartedAt = companyBody.membership_started_at ?? currentCompany?.membership_started_at ?? null;
         const effectiveBillingCycle = companyBody.billing_cycle ?? currentCompany?.billing_cycle;
         payload.membership_started_at = effectiveStartedAt;

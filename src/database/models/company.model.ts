@@ -1,7 +1,7 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../../database';
 import {CompanyAttributes, CompanyCreationAttributes} from "../../interfaces/company/company.interface";
-import { BILLING_CYCLES, COMPANY_PLAN_TYPES, MEMBERSHIP_STATUSES } from '../../constants/domain.constants';
+import { BILLING_CYCLES, MEMBERSHIP_STATUSES } from '../../constants/domain.constants';
 
 class CompanyModel extends Model <CompanyAttributes, CompanyCreationAttributes>
     implements CompanyAttributes {
@@ -10,6 +10,9 @@ class CompanyModel extends Model <CompanyAttributes, CompanyCreationAttributes>
     declare legal_name?: string;
     declare tax_id?: string;
     declare plan_type: CompanyAttributes['plan_type'];
+    declare max_users: number | null;
+    declare max_animals: number | null;
+    declare max_activity_records: number | null;
     declare billing_cycle: CompanyAttributes['billing_cycle'];
     declare membership_status: CompanyAttributes['membership_status'];
     declare membership_started_at?: Date | null;
@@ -43,9 +46,21 @@ CompanyModel.init(
             unique: true,
         },
         plan_type: {
-            type: DataTypes.ENUM(...COMPANY_PLAN_TYPES),
+            type: DataTypes.STRING(64),
             allowNull: false,
-            defaultValue: 'ESSENTIAL',
+            defaultValue: 'VRETE_EMPRESARIAL',
+        },
+        max_users: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
+        max_animals: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
+        max_activity_records: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
         },
         billing_cycle: {
             type: DataTypes.ENUM(...BILLING_CYCLES),

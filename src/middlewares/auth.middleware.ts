@@ -9,6 +9,7 @@ import { CompanyModel, SessionModel } from "../database/models";
 import { normalizeUserRoles, UserRole } from "../interfaces/roles/roles.interface";
 import { Op } from "sequelize";
 import { computeAccessScope } from "../helpers/access-scope.helper";
+import { isRenewalPastGrace } from "../helpers/membership-access.helper";
 
 const isJwtPayload = (value: unknown): value is JwtPayload => {
     if (typeof value !== 'object' || value === null) {
@@ -103,22 +104,17 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
                 }));
             }
 
-            if (company.membership_renewal_at) {
-                const graceDeadline = new Date(company.membership_renewal_at);
-                graceDeadline.setDate(graceDeadline.getDate() + 1);
+            if (company.membership_renewal_at && isRenewalPastGrace(new Date(company.membership_renewal_at))) {
+                company.is_active = false;
+                company.membership_status = 'CANCELLED';
+                await company.save();
 
-                if (Date.now() > graceDeadline.getTime()) {
-                    company.is_active = false;
-                    company.membership_status = 'CANCELLED';
-                    await company.save();
-
-                    return next(new ApiError({
-                        name: 'MembershipExpired',
-                        statusCode: httpStatus.FORBIDDEN,
-                        description: 'Membership expired. Company was automatically deactivated.',
-                        isOperational: true,
-                    }));
-                }
+                return next(new ApiError({
+                    name: 'MembershipExpired',
+                    statusCode: httpStatus.FORBIDDEN,
+                    description: 'Membership expired. Company was automatically deactivated.',
+                    isOperational: true,
+                }));
             }
         }
 

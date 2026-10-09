@@ -13,13 +13,15 @@ const access_scope_helper_1 = require("../helpers/access-scope.helper");
 const auth_constants_1 = require("../constants/auth.constants");
 const models_1 = require("../database/models");
 const login_credential_util_1 = require("../utils/login-credential.util");
+const terms_acceptance_service_1 = require("./terms-acceptance.service");
 class AuthenticationService {
-    constructor(authenticationRepository, sessionService, userManagerService, membershipRepository) {
+    constructor(authenticationRepository, sessionService, userManagerService, membershipRepository, termsAcceptanceService) {
         this.SESSION_EXPIRATION_TIME = auth_constants_1.SESSION_EXPIRATION_TIME;
         this.authenticationRepository = authenticationRepository;
         this.sessionService = sessionService;
         this.userManagerService = userManagerService;
         this.membershipRepository = membershipRepository;
+        this.termsAcceptanceService = termsAcceptanceService;
     }
     async login(data) {
         const { user_name, password } = data;
@@ -106,12 +108,22 @@ class AuthenticationService {
                 description: 'Failed to create session'
             });
         }
+        let terms = (0, terms_acceptance_service_1.termsAccessUnavailable)();
+        try {
+            terms = await this.termsAcceptanceService.evaluateAccess(user.uuid_user, user.uuid_company);
+        }
+        catch {
+            terms = (0, terms_acceptance_service_1.termsAccessUnavailable)();
+        }
+        const { password: _password, ...publicUser } = user;
+        void _password;
         return {
             success: true,
             data: {
                 session: sessionResponse.data,
-                user,
+                user: publicUser,
                 token,
+                terms,
             },
         };
     }

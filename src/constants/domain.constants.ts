@@ -1,7 +1,7 @@
 import { UserRole } from "../interfaces/roles/roles.interface";
 
-export const COMPANY_PLAN_TYPES = ['ESSENTIAL', 'PROFESSIONAL', 'ENTERPRISE'] as const;
-export type CompanyPlanType = typeof COMPANY_PLAN_TYPES[number];
+/** Plan code stored on the company. The commercial catalog is saas_plans, not a fixed list. */
+export type CompanyPlanType = string;
 
 export const BILLING_CYCLES = ['SEMESTRAL', 'ANNUAL'] as const;
 export type BillingCycle = typeof BILLING_CYCLES[number];

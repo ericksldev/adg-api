@@ -8,12 +8,14 @@ const httpStatusCodes_1 = __importDefault(require("../errors/httpStatusCodes"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const models_1 = require("../database/models");
 const roles_interface_1 = require("../interfaces/roles/roles.interface");
+const saas_plan_constants_1 = require("../constants/saas-plan.constants");
 class UserService {
-    constructor(userRepository, userManagerRepository, companyService, passwordValidatorService) {
+    constructor(userRepository, userManagerRepository, companyService, passwordValidatorService, saasPlanService) {
         this.userRepository = userRepository;
         this.userManagerRepository = userManagerRepository;
         this.companyService = companyService;
         this.passwordValidatorService = passwordValidatorService;
+        this.saasPlanService = saasPlanService;
     }
     pickRoleForCreate(userBody) {
         const raw = userBody.role != null ? String(userBody.role) : roles_interface_1.UserRole.RANCH_STAFF;
@@ -108,16 +110,6 @@ class UserService {
         }
         return resolved;
     }
-    getMaxUsersByPlan(planType) {
-        const limitsByPlan = {
-            ESSENTIAL: 20,
-            PROFESSIONAL: 60,
-            ENTERPRISE: 200,
-            BASIC: 20,
-            PREMIUM: 200
-        };
-        return limitsByPlan[planType] ?? 20;
-    }
     async getAll(params) {
         const { rows, count } = await this.userRepository.findAll(params);
         const plainUsers = rows.map(user => user.get({ plain: true }));
@@ -164,7 +156,7 @@ class UserService {
                 is_active: true
             }
         });
-        const maxUsersAllowed = this.getMaxUsersByPlan(company.plan_type);
+        const maxUsersAllowed = await this.saasPlanService.getResourceLimit(company.uuid_company, saas_plan_constants_1.SAAS_PLAN_RESOURCE.USERS);
         if (activeUsersInCompany >= maxUsersAllowed) {
             throw new apiError_1.default({
                 name: 'PlanLimitReached',

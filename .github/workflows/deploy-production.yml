@@ -1,0 +1,203 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: vrete-api-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 881490097678.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: vrete-api
+  LIGHTSAIL_SERVICE: vrete-api
+
+jobs:
+  validate:
+    name: Test, typecheck, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  deploy:
+    name: Publish image and deploy
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        env:
+          IMAGE_URI: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+
+      - name: Deploy to Lightsail
+        env:
+          IMAGE_URI: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
+          SEED_SAAS_COMPANY_NAME: ${{ secrets.SEED_SAAS_COMPANY_NAME }}
+          SEED_SAAS_OWNER_EMAIL: ${{ secrets.SEED_SAAS_OWNER_EMAIL }}
+          SEED_SAAS_OWNER_USERNAME: ${{ secrets.SEED_SAAS_OWNER_USERNAME }}
+          SEED_SAAS_OWNER_PASSWORD: ${{ secrets.SEED_SAAS_OWNER_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          required = [
+              "DB_HOST",
+              "DB_PORT",
+              "DB_USER",
+              "DB_PASSWORD",
+              "DB_NAME",
+              "JWT_SECRET",
+              "CORS_ORIGIN",
+              "SEED_SAAS_COMPANY_NAME",
+              "SEED_SAAS_OWNER_EMAIL",
+              "SEED_SAAS_OWNER_USERNAME",
+              "SEED_SAAS_OWNER_PASSWORD",
+          ]
+          missing = [name for name in required if not os.environ.get(name, "").strip()]
+          if missing:
+              print("Missing required GitHub secrets: " + ", ".join(missing))
+              raise SystemExit(1)
+
+          containers = {
+              "api": {
+                  "image": os.environ["IMAGE_URI"],
+                  "ports": {"3010": "HTTP"},
+                  "environment": {
+                      "NODE_ENV": "production",
+                      "PORT": "3010",
+                      "DB_HOST": os.environ["DB_HOST"],
+                      "DB_PORT": os.environ["DB_PORT"],
+                      "DB_USER": os.environ["DB_USER"],
+                      "DB_PASSWORD": os.environ["DB_PASSWORD"],
+                      "DB_NAME": os.environ["DB_NAME"],
+                      "JWT_SECRET": os.environ["JWT_SECRET"],
+                      "CORS_ORIGIN": os.environ["CORS_ORIGIN"],
+                      "DB_SYNC_ALTER": "false",
+                      "SEED_SAAS_COMPANY_NAME": os.environ["SEED_SAAS_COMPANY_NAME"],
+                      "SEED_SAAS_OWNER_EMAIL": os.environ["SEED_SAAS_OWNER_EMAIL"],
+                      "SEED_SAAS_OWNER_USERNAME": os.environ["SEED_SAAS_OWNER_USERNAME"],
+                      "SEED_SAAS_OWNER_PASSWORD": os.environ["SEED_SAAS_OWNER_PASSWORD"],
+                  },
+              }
+          }
+          public_endpoint = {
+              "containerName": "api",
+              "containerPort": 3010,
+              "healthCheck": {
+                  "path": "/api/health",
+                  "successCodes": "200",
+                  "intervalSeconds": 10,
+                  "timeoutSeconds": 5,
+                  "healthyThreshold": 2,
+                  "unhealthyThreshold": 2,
+              },
+          }
+          with open("containers.json", "w", encoding="utf-8") as handle:
+              json.dump(containers, handle)
+          with open("public-endpoint.json", "w", encoding="utf-8") as handle:
+              json.dump(public_endpoint, handle)
+          PY
+
+          aws lightsail create-container-service-deployment \
+            --region "$AWS_REGION" \
+            --service-name "$LIGHTSAIL_SERVICE" \
+            --containers file://containers.json \
+            --public-endpoint file://public-endpoint.json \
+            --query 'containerService.nextDeployment.version' \
+            --output text
+          rm -f containers.json public-endpoint.json
+
+      - name: Wait until deployment is active
+        env:
+          IMAGE_URI: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 900))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            raw="$(aws lightsail get-container-services \
+              --region "$AWS_REGION" \
+              --service-name "$LIGHTSAIL_SERVICE" \
+              --query 'containerServices[0].[nextDeployment.state,nextDeployment.containers.api.image,currentDeployment.state,currentDeployment.containers.api.image]' \
+              --output text)"
+            mapfile -t fields < <(printf '%s\n' "$raw" | tr '\t' '\n')
+            next_state="${fields[0]:-}"
+            current_state="${fields[2]:-}"
+            current_image="${fields[3]:-}"
+            case "$next_state" in
+              ""|None|null) next_state="" ;;
+            esac
+            case "$current_state" in
+              ""|None|null) current_state="" ;;
+            esac
+            case "$current_image" in
+              ""|None|null) current_image="" ;;
+            esac
+
+            echo "next=${next_state:-none} current=${current_state:-none}"
+
+            if [ "$next_state" = "FAILED" ] || [ "$current_state" = "FAILED" ]; then
+              echo "Lightsail deployment failed."
+              exit 1
+            fi
+
+            if [ "$current_state" = "ACTIVE" ] && [ "$current_image" = "$IMAGE_URI" ] && [ -z "$next_state" ]; then
+              echo "Deployment is active."
+              exit 0
+            fi
+
+            sleep 20
+          done
+
+          echo "Timed out waiting for the Lightsail deployment to become active."
+          exit 1

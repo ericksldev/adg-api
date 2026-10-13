@@ -202,3 +202,5 @@ jobs:
 
           echo "Timed out waiting for the Lightsail deployment to become active."
           exit 1
+
+ 

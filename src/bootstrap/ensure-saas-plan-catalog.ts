@@ -4,6 +4,7 @@ import { Sequelize } from 'sequelize';
 
 function resolveMigrationPath(): string {
     const candidates = [
+        path.join(__dirname, '../scripts/migrate-saas-plans.sql'),
         path.join(__dirname, '../../scripts/migrate-saas-plans.sql'),
         path.join(__dirname, '../../../scripts/migrate-saas-plans.sql'),
     ];

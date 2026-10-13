@@ -8,6 +8,7 @@ const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 function resolveMigrationPath() {
     const candidates = [
+        node_path_1.default.join(__dirname, '../scripts/migrate-saas-plans.sql'),
         node_path_1.default.join(__dirname, '../../scripts/migrate-saas-plans.sql'),
         node_path_1.default.join(__dirname, '../../../scripts/migrate-saas-plans.sql'),
     ];

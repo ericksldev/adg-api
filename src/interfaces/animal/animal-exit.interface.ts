@@ -44,4 +44,5 @@ export interface AnimalListItemWithExit extends AnimalAttributes {
         reason?: string | null;
         description?: string | null;
     } | null;
+    categories?: { category_uuid: string; name?: string }[];
 }

@@ -1,7 +1,8 @@
 import type { Model, ModelStatic } from 'sequelize';
 import type { OperationalModelsBundle } from '../models/animal-operations.models';
+import type { LivestockCategoryModels } from '../models/livestock-category.models';
 
-export type TenantDomainModels = OperationalModelsBundle & {
+export type TenantDomainModels = OperationalModelsBundle & LivestockCategoryModels & {
     RanchModel: ModelStatic<Model>;
     AnimalModel: ModelStatic<Model>;
     AnimalLegacyModel: ModelStatic<Model>;

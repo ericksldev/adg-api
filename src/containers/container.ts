@@ -55,6 +55,9 @@ import TermsAcceptanceController from "../controllers/terms-acceptance.controlle
 import RecordPurgeRepository from "../repositories/record-purge.repository";
 import RecordPurgeService from "../services/record-purge.service";
 import RecordPurgeController from "../controllers/record-purge.controller";
+import LivestockCategoryRepository from "../repositories/livestock-category.repository";
+import LivestockCategoryService from "../services/livestock-category.service";
+import LivestockCategoryController from "../controllers/livestock-category.controller";
 
 //Repositories
 const companyRepository = new CompanyRepository();
@@ -94,7 +97,17 @@ const userService = new UserService(
 );
 const paddockService = new PaddockService(paddockRepository, ranchRepository);
 const ranchService = new RanchService(ranchRepository, paddockRepository);
-const animalService = new AnimalService(animalRepository, companyService, saasPlanService);
+const livestockCategoryRepository = new LivestockCategoryRepository();
+const livestockCategoryService = new LivestockCategoryService(livestockCategoryRepository);
+const animalService = new AnimalService(
+    animalRepository,
+    companyService,
+    saasPlanService,
+    undefined,
+    undefined,
+    undefined,
+    livestockCategoryService
+);
 const animalWorkSessionService = new AnimalWorkSessionService(animalWorkSessionRepository);
 const corralWorkSessionService = new CorralWorkSessionService(
     corralSessionRepository,
@@ -144,6 +157,7 @@ const animalAttendanceController = new AnimalAttendanceController(animalAttendan
 const saasPlanController = new SaasPlanController(saasPlanService);
 const termsAcceptanceController = new TermsAcceptanceController(termsAcceptanceService);
 const recordPurgeController = new RecordPurgeController(recordPurgeService);
+const livestockCategoryController = new LivestockCategoryController(livestockCategoryService);
 
 export { membershipRepository };
 
@@ -165,5 +179,7 @@ export const container = {
     saasPlanController,
     termsAcceptanceController,
     termsAcceptanceService,
-    recordPurgeController
+    recordPurgeController,
+    livestockCategoryController,
+    livestockCategoryService
 }

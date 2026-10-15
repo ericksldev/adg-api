@@ -17,6 +17,7 @@ import animalAttendanceRoutes from "./animal-attendance.routes";
 import saasPlanRoutes from "./saas-plan.routes";
 import termsRoutes from "./terms-acceptance.routes";
 import recordPurgeRoutes from "./record-purge.routes";
+import livestockCategoryRoutes from "./livestock-category.routes";
 import { container } from "../containers/container";
 import { requireTermsAcceptance } from "../middlewares/terms-acceptance.middleware";
 
@@ -46,6 +47,7 @@ operationalRouter.use('/animal-work-session', animalWorkSessionRoutes);
 operationalRouter.use('/corral-work-session', corralWorkSessionRoutes);
 operationalRouter.use('/membership', membershipRoutes);
 operationalRouter.use('/record-purge', recordPurgeRoutes);
+operationalRouter.use('/livestock-category', livestockCategoryRoutes);
 
 router.use(operationalRouter);
 

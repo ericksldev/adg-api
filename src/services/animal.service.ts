@@ -35,8 +35,9 @@ import { isValidCattleBreedCode } from "../constants/cattle-breed.constants";
 import PaddockRepository from "../repositories/paddock.repository";
 import OwnerRepository from "../repositories/owner.repository";
 import { RanchAttributes, RanchCreationAttributes } from "../interfaces/ranch/ranch.interface";
-import { requireTenantModels } from "../database/tenant/tenant-request-context";
+import { requireTenantModels, tenantRequestStorage } from "../database/tenant/tenant-request-context";
 import type { Model } from "sequelize";
+import LivestockCategoryService from "./livestock-category.service";
 
 export type AnimalCreateContext = {
     jwtCompanyUuid?: string;
@@ -70,6 +71,8 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
     private readonly paddockRepository: PaddockRepository;
     private readonly ownerRepository: OwnerRepository;
 
+    private readonly livestockCategoryService?: LivestockCategoryService;
+
     constructor(
         animalRepository: AnimalRepository,
         companyService: IBaseServiceInterface<CompanyAttributes, CompanyCreationAttributes>,
@@ -77,6 +80,7 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         paddockRepository?: PaddockRepository,
         ownerRepository?: OwnerRepository,
         animalDisposalRepository?: AnimalDisposalRepository,
+        livestockCategoryService?: LivestockCategoryService
     ) {
         this.animalRepository = animalRepository;
         this.animalDisposalRepository = animalDisposalRepository ?? new AnimalDisposalRepository();
@@ -84,6 +88,7 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         this.saasPlanService = saasPlanService;
         this.paddockRepository = paddockRepository ?? new PaddockRepository();
         this.ownerRepository = ownerRepository ?? new OwnerRepository();
+        this.livestockCategoryService = livestockCategoryService;
     }
 
     private async validateRanchBelongsToCompany(
@@ -295,6 +300,8 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
                 last_exit: this.mapDisposalToLastExit(disposalMap.get(animal.animal_uuid)),
             }));
         }
+
+        data = await this.attachCategories(data, params.uuid_company);
 
         return {
             success: true,
@@ -620,7 +627,37 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             this.rememberBatchKeys(ranchUuid, registration_number, chip_number, batchKeys);
         }
 
-        return animal.get({ plain: true }) as AnimalAttributes;
+        const created = animal.get({ plain: true }) as AnimalAttributes;
+        return created;
+    }
+
+    private async attachCategories<T extends { animal_uuid: string }>(
+        animals: T[],
+        uuidCompany?: string
+    ): Promise<(T & { categories?: { category_uuid: string; name?: string }[] })[]> {
+        if (!this.livestockCategoryService || animals.length === 0) {
+            return animals;
+        }
+        const companyUuid = uuidCompany ?? tenantRequestStorage.getStore()?.uuid_company;
+        if (!companyUuid) {
+            return animals;
+        }
+        try {
+            const grouped = await this.livestockCategoryService.labelsForAnimals(
+                { uuid_company: companyUuid },
+                animals.map((animal) => animal.animal_uuid)
+            );
+            return animals.map((animal) => ({
+                ...animal,
+                categories: (grouped.get(animal.animal_uuid) ?? []).map((item) => ({
+                    category_uuid: item.category_uuid,
+                    name: item.name,
+                })),
+            }));
+        } catch (error) {
+            console.error('Livestock categories could not be attached', error);
+            return animals;
+        }
     }
 
     async getById(params: {
@@ -653,7 +690,8 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             plain.last_exit = this.mapDisposalToLastExit(disposalMap.get(plain.animal_uuid));
         }
 
-        return { success: true, data: plain };
+        const [withCategories] = await this.attachCategories([plain], uuid_company);
+        return { success: true, data: withCategories ?? plain };
     }
 
     async deactivateWithExit(
@@ -1032,7 +1070,8 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             });
         }
 
-        return { success: true, data: updated.get({ plain: true }) };
+        const updatedPlain = updated.get({ plain: true }) as AnimalAttributes;
+        return { success: true, data: updatedPlain };
     }
 
     async delete(id: string, tenantContext?: { uuid_company?: string; uuid_ranch_in?: string[] }): Promise<ServiceResponse<null>> {

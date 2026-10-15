@@ -28,6 +28,8 @@ export interface IBaseParams {
     birth_date_from?: string;
     /** Animal list filter: birth date inclusive end (YYYY-MM-DD). */
     birth_date_to?: string;
+    /** Animal list filter: livestock category assigned to the animal. */
+    category_uuid?: string;
     /** Inactive animal list filter: SALE | DEATH | DISPOSED | MISSING | OTHER. */
     exit_type?: string;
     /** Derived from exit_type for the inactive list. Not a public query param. */

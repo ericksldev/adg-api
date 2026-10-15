@@ -233,6 +233,15 @@ class AnimalController {
             if (paddockUuid) {
                 params.current_paddock_uuid = paddockUuid;
             }
+            const categoryRaw = typeof req.query.category_uuid === "string" ? req.query.category_uuid.trim() : "";
+            if (categoryRaw.toLowerCase() === "none") {
+                params.category_uuid = "none";
+            } else {
+                const categoryUuid = this.optionalUuid(categoryRaw);
+                if (categoryUuid) {
+                    params.category_uuid = categoryUuid;
+                }
+            }
 
             const birthFrom = this.optionalIsoDate(req.query.birth_date_from);
             if (birthFrom) {

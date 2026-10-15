@@ -34,6 +34,8 @@ export enum Permission {
     RECORD_PURGE_READ = "RECORD_PURGE_READ",
     /** Borrar de forma permanente un candidato (solo administrador de la empresa). */
     RECORD_PURGE_WRITE = "RECORD_PURGE_WRITE",
+    LIVESTOCK_CATEGORY_READ = "LIVESTOCK_CATEGORY_READ",
+    LIVESTOCK_CATEGORY_WRITE = "LIVESTOCK_CATEGORY_WRITE",
 }
 
 export const PERMISSION_ROLE_MAP: Record<Permission, UserRole[]> = {
@@ -63,4 +65,6 @@ export const PERMISSION_ROLE_MAP: Record<Permission, UserRole[]> = {
     [Permission.TERMS_VERSION_WRITE]: [UserRole.SAAS_OWNER],
     [Permission.RECORD_PURGE_READ]: [UserRole.ADMINISTRATOR],
     [Permission.RECORD_PURGE_WRITE]: [UserRole.ADMINISTRATOR],
+    [Permission.LIVESTOCK_CATEGORY_READ]: [UserRole.RANCH_STAFF, UserRole.ADMINISTRATOR],
+    [Permission.LIVESTOCK_CATEGORY_WRITE]: [UserRole.ADMINISTRATOR],
 };

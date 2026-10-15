@@ -85,6 +85,24 @@ const TENANT_DDL_PATCHES: string[] = [
     );`,
     `CREATE INDEX IF NOT EXISTS idx_record_deletion_audits_deleted_at
        ON record_deletion_audits (deleted_at DESC);`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_livestock_categories_system_code
+       ON livestock_categories (system_code)
+       WHERE is_system = true AND system_code IS NOT NULL;`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_livestock_categories_company_name
+       ON livestock_categories (COALESCE(uuid_company, '00000000-0000-0000-0000-000000000000'::uuid), lower(name));`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_animal_categories_animal_category
+       ON animal_categories (animal_uuid, category_uuid);`,
+    `CREATE INDEX IF NOT EXISTS idx_animal_category_history_animal
+       ON animal_category_history (animal_uuid, recorded_at DESC);`,
+    `DROP TABLE IF EXISTS livestock_category_rule_conditions;`,
+    `DROP TABLE IF EXISTS livestock_category_rules;`,
+    `DROP TABLE IF EXISTS livestock_category_incompatibilities;`,
+    `DROP TABLE IF EXISTS animal_category_overrides;`,
+    `DROP TABLE IF EXISTS animal_category_conflicts;`,
+    `ALTER TABLE IF EXISTS animal_categories DROP COLUMN IF EXISTS origin;`,
+    `ALTER TABLE IF EXISTS animal_categories DROP COLUMN IF EXISTS rule_uuid;`,
+    `ALTER TABLE IF EXISTS animal_category_history DROP COLUMN IF EXISTS origin;`,
+    `ALTER TABLE IF EXISTS animal_category_history DROP COLUMN IF EXISTS rule_uuid;`,
 ];
 
 async function animalsBirthDateColumnExists(sequelize: Sequelize): Promise<boolean> {

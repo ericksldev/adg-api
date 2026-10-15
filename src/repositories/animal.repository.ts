@@ -74,6 +74,7 @@ class AnimalRepository implements
             origin_type?: string;
             current_owner_uuid?: string;
             current_paddock_uuid?: string;
+            category_uuid?: string;
             birth_date_from?: string;
             birth_date_to?: string;
             current_status?: string;
@@ -113,6 +114,27 @@ class AnimalRepository implements
         }
         if (params.current_paddock_uuid) {
             where.current_paddock_uuid = params.current_paddock_uuid;
+        }
+
+        const categoryUuid = params.category_uuid?.trim();
+        if (categoryUuid) {
+            const { AnimalCategoryModel } = requireTenantModels();
+            if (categoryUuid === 'none') {
+                const links = await AnimalCategoryModel.findAll({ attributes: ['animal_uuid'] });
+                const assignedIds = [...new Set(links.map((row) => String(row.get('animal_uuid'))))];
+                if (assignedIds.length) {
+                    where.animal_uuid = { [Op.notIn]: assignedIds };
+                }
+            } else {
+                const links = await AnimalCategoryModel.findAll({
+                    where: { category_uuid: categoryUuid },
+                    attributes: ['animal_uuid'],
+                });
+                const animalIds = links.map((row) => String(row.get('animal_uuid')));
+                where.animal_uuid = {
+                    [Op.in]: animalIds.length ? animalIds : ['00000000-0000-0000-0000-000000000000']
+                };
+            }
         }
 
         const currentStatus = params.current_status?.trim().toUpperCase();

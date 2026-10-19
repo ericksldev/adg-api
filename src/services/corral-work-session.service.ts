@@ -48,11 +48,19 @@ import {
     CorralWorkSessionStatus,
     CORRAL_VISUAL_CONDITION_CODES,
 } from '../constants/corral-work.constants';
-import { AnimalAttributes } from '../interfaces/animal/animal.interface';
 import { normalizeAnimalIdentifier } from '../utils/animal-identifier.util';
 
 const ANIMAL_WORK_HISTORY_LIMIT = 10;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type AnimalLookupMatch = {
+    animal_uuid: string;
+    registration_number: string;
+    chip_number?: string | null;
+    sex?: string;
+    breed_code?: string | null;
+    birth_date?: string | null;
+};
 
 class CorralWorkSessionService {
     private readonly repository: CorralSessionRepository;
@@ -147,11 +155,13 @@ class CorralWorkSessionService {
                 uuid,
                 step.uuid_corral_session_step
             );
-            const registeredNumbers = new Set(
-                stepAnimals.map((animal) => animal.registration_number.toLowerCase())
-            );
+            const registrationCounts = new Map<string, number>();
+            for (const animal of stepAnimals) {
+                const key = animal.registration_number.toLowerCase();
+                registrationCounts.set(key, (registrationCounts.get(key) ?? 0) + 1);
+            }
             const missingInventoryRows = unregisteredRows
-                .filter((row) => !registeredNumbers.has(row.registration_number.toLowerCase()))
+                .filter((row) => (registrationCounts.get(row.registration_number.toLowerCase()) ?? 0) !== 1)
                 .map((row) => ({
                     animal_uuid: row.uuid_corral_unregistered_step_row,
                     registration_number: row.registration_number,
@@ -411,7 +421,7 @@ class CorralWorkSessionService {
         }
 
         const ranchUuid = plain.ranch_uuid;
-        const animal = await this.requireAnimalInSessionRanch(ranchUuid, identifier);
+        const animal = await this.requireAnimalInSessionRanch(ranchUuid, identifier, body.animal_uuid);
 
         if (plain.status === CorralWorkSessionStatus.DRAFT) {
             await this.repository.updateSession(sessionUuid, {
@@ -487,7 +497,10 @@ class CorralWorkSessionService {
             });
         }
 
-        await this.repository.upsertUnregisteredStepRow(sessionUuid, stepUuid, identifier);
+        await this.repository.upsertUnregisteredStepRow(sessionUuid, stepUuid, identifier, undefined, {
+            createNew: body.create_new === true,
+            rowUuid: body.row_uuid,
+        });
 
         const workspace = await this.getWorkspace(sessionUuid);
         const grid = workspace.data?.grids.find((item) => item.uuid_corral_session_step === stepUuid);
@@ -874,7 +887,10 @@ class CorralWorkSessionService {
                     sessionUuid,
                     stepUuid,
                     registrationNumber,
-                    row.values
+                    row.values,
+                    unregisteredUuids.has(row.animal_uuid)
+                        ? { rowUuid: row.animal_uuid }
+                        : { createNew: true }
                 );
                 continue;
             }
@@ -937,14 +953,42 @@ class CorralWorkSessionService {
         return { success: true, data: grid };
     }
 
-    async lookupAnimal(sessionUuid: string, identifier: string): Promise<ServiceResponse<AnimalAttributes>> {
+    async lookupAnimal(
+        sessionUuid: string,
+        identifier: string
+    ): Promise<ServiceResponse<{ matches: AnimalLookupMatch[] }>> {
         const session = await this.requireSession(sessionUuid);
         const ranchUuid = session.get('ranch_uuid') as string;
-        const animal = await this.requireAnimalInSessionRanch(ranchUuid, identifier);
-        return {
-            success: true,
-            data: animal as unknown as AnimalAttributes,
-        };
+        const matches = await this.repository.findAnimalsInRanchByIdentifier(ranchUuid, identifier);
+        if (matches.length === 0) {
+            const fallback = await this.repository.findActiveAnimalByIdentifier(identifier);
+            if (fallback && fallback.ranch_uuid !== ranchUuid) {
+                throw new ApiError({
+                    name: 'NotFound',
+                    statusCode: HttpStatusCodes.NOT_FOUND,
+                    description: 'Animal not found for this ranch',
+                });
+            }
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Animal not found for this ranch',
+            });
+        }
+        return { success: true, data: { matches } };
+    }
+
+    async resolvePendingAnimalRegistrations(rowUuids: string[]): Promise<ServiceResponse<{ resolved: number }>> {
+        const ids = [...new Set(rowUuids.map((id) => id.trim()).filter((id) => UUID_PATTERN.test(id)))];
+        if (ids.length === 0) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'row_uuids is required',
+            });
+        }
+        const resolved = await this.repository.deactivateUnregisteredRows(ids);
+        return { success: true, data: { resolved } };
     }
 
     async getAnimalWorkHistory(
@@ -1532,11 +1576,31 @@ class CorralWorkSessionService {
 
     private async requireAnimalInSessionRanch(
         ranchUuid: string,
-        identifier: string
+        identifier: string,
+        animalUuid?: string
     ): Promise<{ animal_uuid: string; registration_number: string; chip_number?: string | null }> {
-        const animal = await this.repository.findAnimalInRanchByIdentifier(ranchUuid, identifier);
-        if (animal) {
-            return animal;
+        if (animalUuid?.trim()) {
+            const selected = await this.repository.findAnimalInRanchByUuid(ranchUuid, animalUuid.trim());
+            if (!selected) {
+                throw new ApiError({
+                    name: 'NotFound',
+                    statusCode: HttpStatusCodes.NOT_FOUND,
+                    description: 'Animal not found for this ranch',
+                });
+            }
+            return selected;
+        }
+
+        const matches = await this.repository.findAnimalsInRanchByIdentifier(ranchUuid, identifier);
+        if (matches.length === 1) {
+            return matches[0];
+        }
+        if (matches.length > 1) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Multiple animals share this identifier',
+            });
         }
 
         const fallback = await this.repository.findActiveAnimalByIdentifier(identifier);

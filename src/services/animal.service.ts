@@ -58,7 +58,6 @@ type HeadBudget = {
 };
 
 type BatchDuplicateKeys = {
-    seenRegistration: Set<string>;
     seenChip: Set<string>;
 };
 
@@ -164,11 +163,19 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
                 description: `Parent registration number is empty (${expectedSex})`
             });
         }
-        return this.animalRepository.findActiveUuidByRanchRegistrationAndSex(
+        const matches = await this.animalRepository.findActiveByRanchRegistrationAndSex(
             ranchUuid,
             registration_number,
             expectedSex
         );
+        if (matches.length > 1) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: `Multiple ${expectedSex} animals share this registration number`,
+            });
+        }
+        return matches[0]?.animal_uuid ?? null;
     }
 
     /**
@@ -353,7 +360,6 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         const ctx: AnimalCreateContext = createContext ?? { isSaasOwner: false };
         const headBudgets = new Map<string, HeadBudget>();
         const batchKeys: BatchDuplicateKeys = {
-            seenRegistration: new Set<string>(),
             seenChip: new Set<string>(),
         };
 
@@ -405,47 +411,33 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         };
     }
 
-    private registrationKey(ranchUuid: string, registrationNumber: string): string {
-        return `${ranchUuid}\u0000${registrationNumber.trim().toLowerCase()}`;
-    }
-
     private chipKey(ranchUuid: string, chipNumber: string): string {
         return `${ranchUuid}\u0000${chipNumber.trim().toLowerCase()}`;
     }
 
     private assertNoBatchDuplicate(
         ranchUuid: string,
-        registration_number: string,
         chip_number: string | null,
         batchKeys: BatchDuplicateKeys
     ): void {
-        const regKey = this.registrationKey(ranchUuid, registration_number);
-        if (batchKeys.seenRegistration.has(regKey)) {
+        if (!chip_number) {
+            return;
+        }
+        const cKey = this.chipKey(ranchUuid, chip_number);
+        if (batchKeys.seenChip.has(cKey)) {
             throw new ApiError({
                 name: 'ValidationError',
                 statusCode: HttpStatusCodes.BAD_REQUEST,
-                description: 'registration_number is duplicated within this batch for the same ranch',
+                description: 'chip_number is duplicated within this batch for the same ranch',
             });
-        }
-        if (chip_number) {
-            const cKey = this.chipKey(ranchUuid, chip_number);
-            if (batchKeys.seenChip.has(cKey)) {
-                throw new ApiError({
-                    name: 'ValidationError',
-                    statusCode: HttpStatusCodes.BAD_REQUEST,
-                    description: 'chip_number is duplicated within this batch for the same ranch',
-                });
-            }
         }
     }
 
     private rememberBatchKeys(
         ranchUuid: string,
-        registration_number: string,
         chip_number: string | null,
         batchKeys: BatchDuplicateKeys
     ): void {
-        batchKeys.seenRegistration.add(this.registrationKey(ranchUuid, registration_number));
         if (chip_number) {
             batchKeys.seenChip.add(this.chipKey(ranchUuid, chip_number));
         }
@@ -526,19 +518,7 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         const chip_number = this.normalizeOptionalChip(body.chip_number);
 
         if (batchKeys) {
-            this.assertNoBatchDuplicate(ranchUuid, registration_number, chip_number, batchKeys);
-        }
-
-        const duplicate = await this.animalRepository.findAnimalUuidByRanchAndRegistration(
-            ranchUuid,
-            registration_number
-        );
-        if (duplicate) {
-            throw new ApiError({
-                name: 'ValidationError',
-                statusCode: HttpStatusCodes.BAD_REQUEST,
-                description: 'registration_number must be unique within the ranch',
-            });
+            this.assertNoBatchDuplicate(ranchUuid, chip_number, batchKeys);
         }
 
         const breedRaw = body.breed_code == null ? '' : String(body.breed_code).trim();
@@ -624,7 +604,7 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         budget.createdInBatch += 1;
 
         if (batchKeys) {
-            this.rememberBatchKeys(ranchUuid, registration_number, chip_number, batchKeys);
+            this.rememberBatchKeys(ranchUuid, chip_number, batchKeys);
         }
 
         const created = animal.get({ plain: true }) as AnimalAttributes;
@@ -969,22 +949,6 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             }
         }
 
-        if (body.registration_number?.trim()) {
-            const reg = body.registration_number.trim();
-            const conflict = await this.animalRepository.findAnimalUuidByRanchAndRegistration(
-                nextRanch,
-                reg,
-                { excludeAnimalUuid: id }
-            );
-            if (conflict) {
-                throw new ApiError({
-                    name: 'ValidationError',
-                    statusCode: HttpStatusCodes.BAD_REQUEST,
-                    description: 'registration_number must be unique within the ranch'
-                });
-            }
-        }
-
         let chip_number = currentAttrs.chip_number ?? null;
         if (body.chip_number !== undefined) {
             chip_number = this.normalizeOptionalChip(body.chip_number);
@@ -1099,7 +1063,12 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
         ranch_uuid: string,
         sex: AnimalSex,
         tenantContext?: { uuid_company?: string; uuid_ranch_in?: string[] }
-    ): Promise<ServiceResponse<{ animal_uuid: string; registration_number: string }[]>> {
+    ): Promise<ServiceResponse<{
+        animal_uuid: string;
+        registration_number: string;
+        chip_number: string | null;
+        birth_date: string | null;
+    }[]>> {
         await this.validateRanchBelongsToCompany(ranch_uuid, { uuid_company: tenantContext?.uuid_company });
         if (tenantContext?.uuid_ranch_in?.length && !tenantContext.uuid_ranch_in.includes(ranch_uuid)) {
             throw new ApiError({
@@ -1109,7 +1078,26 @@ class AnimalService implements IBaseServiceInterface<AnimalAttributes, AnimalCre
             });
         }
         const rows = await this.animalRepository.listByRanchForParentSelection(ranch_uuid, sex);
-        return { success: true, data: rows };
+        return {
+            success: true,
+            data: rows.map((row) => ({
+                animal_uuid: row.animal_uuid,
+                registration_number: row.registration_number,
+                chip_number: row.chip_number ?? null,
+                birth_date: this.toParentBirthDate(row.birth_date),
+            })),
+        };
+    }
+
+    private toParentBirthDate(value: Date | string | null | undefined): string | null {
+        if (!value) {
+            return null;
+        }
+        if (value instanceof Date) {
+            return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+        }
+        const text = String(value).trim();
+        return text.length >= 10 ? text.slice(0, 10) : text || null;
     }
 }
 

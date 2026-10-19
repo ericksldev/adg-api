@@ -55,6 +55,17 @@ class CorralWorkSessionController {
         }
     };
 
+    resolvePendingAnimalRegistrations = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const raw = (req.body as { row_uuids?: unknown })?.row_uuids;
+            const rowUuids = Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+            const response = await this.service.resolvePendingAnimalRegistrations(rowUuids);
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const response = await this.service.getById(req.params.uuid_corral_work_session);

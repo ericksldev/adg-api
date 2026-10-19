@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { container } from '../containers/container';
-import { authorize } from '../middlewares/authorization.middleware';
+import { authorize, authorizeAny } from '../middlewares/authorization.middleware';
 import { Permission } from '../constants/authorization.constants';
 
 const corralWorkSessionRoutes = Router({ mergeParams: true });
@@ -14,6 +14,11 @@ corralWorkSessionRoutes.get(
     '/pending-registrations',
     authorize(Permission.ANIMAL_WORK_SESSION_READ),
     container.corralWorkSessionController.listPendingAnimalRegistrations
+);
+corralWorkSessionRoutes.post(
+    '/pending-registrations/resolve',
+    authorizeAny(Permission.ANIMAL_WRITE, Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.resolvePendingAnimalRegistrations
 );
 corralWorkSessionRoutes.post(
     '/',

@@ -68,9 +68,7 @@ const TENANT_DDL_PATCHES: string[] = [
        ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ;`,
     `ALTER TABLE IF EXISTS corral_unregistered_step_rows
        ADD COLUMN IF NOT EXISTS scanned_at TIMESTAMPTZ;`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS uq_corral_unregistered_step_rows_step_registration
-       ON corral_unregistered_step_rows (uuid_corral_session_step, lower(registration_number))
-       WHERE is_active = true;`,
+    `DROP INDEX IF EXISTS uq_corral_unregistered_step_rows_step_registration;`,
     `ALTER TABLE IF EXISTS animals ALTER COLUMN breed_code DROP NOT NULL;`,
     `ALTER TABLE IF EXISTS animals ALTER COLUMN breed_code DROP DEFAULT;`,
     `ALTER TABLE IF EXISTS animal_movements

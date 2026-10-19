@@ -1,4 +1,6 @@
 import { Op, QueryTypes, Transaction } from 'sequelize';
+import ApiError from '../errors/apiError';
+import HttpStatusCodes from '../errors/httpStatusCodes';
 import type { Model } from 'sequelize';
 import { requireTenantModels, requireTenantSequelize } from '../database/tenant/tenant-request-context';
 import { buildAnimalIdentifierExactMatchClause } from '../utils/animal-identifier.util';
@@ -652,27 +654,60 @@ class CorralSessionRepository {
         ranchUuid: string,
         identifier: string
     ): Promise<{ animal_uuid: string; registration_number: string; chip_number?: string | null } | null> {
+        const matches = await this.findAnimalsInRanchByIdentifier(ranchUuid, identifier);
+        return matches[0] ?? null;
+    }
+
+    async findAnimalsInRanchByIdentifier(
+        ranchUuid: string,
+        identifier: string
+    ): Promise<Array<{
+        animal_uuid: string;
+        registration_number: string;
+        chip_number?: string | null;
+        sex: string;
+        breed_code?: string | null;
+        birth_date: string | null;
+    }>> {
         const identifierClause = buildAnimalIdentifierExactMatchClause(identifier);
         if (!identifierClause) {
-            return null;
+            return [];
         }
 
         const { AnimalModel } = requireTenantModels();
-        const row = await AnimalModel.findOne({
+        const rows = await AnimalModel.findAll({
             where: {
                 ranch_uuid: ranchUuid,
                 is_active: true,
                 ...identifierClause,
             },
-            attributes: ['animal_uuid', 'registration_number', 'chip_number'],
+            attributes: ['animal_uuid', 'registration_number', 'chip_number', 'sex', 'breed_code', 'birth_date', 'created_at'],
+            order: [['registration_number', 'ASC'], ['created_at', 'ASC']],
         });
-        return row
-            ? (row.get({ plain: true }) as {
-                  animal_uuid: string;
-                  registration_number: string;
-                  chip_number?: string | null;
-              })
-            : null;
+        return rows.map((row) => {
+            const plain = row.get({ plain: true }) as {
+                animal_uuid: string;
+                registration_number: string;
+                chip_number?: string | null;
+                sex: string;
+                breed_code?: string | null;
+                birth_date?: Date | string | null;
+            };
+            const birth = plain.birth_date;
+            const birth_date = birth instanceof Date
+                ? birth.toISOString().slice(0, 10)
+                : birth
+                    ? String(birth).slice(0, 10)
+                    : null;
+            return {
+                animal_uuid: plain.animal_uuid,
+                registration_number: plain.registration_number,
+                chip_number: plain.chip_number ?? null,
+                sex: plain.sex,
+                breed_code: plain.breed_code ?? null,
+                birth_date,
+            };
+        });
     }
 
     async findAnimalInRanchByUuid(
@@ -983,22 +1018,45 @@ class CorralSessionRepository {
         sessionUuid: string,
         stepUuid: string,
         registrationNumber: string,
-        cellValues?: Record<string, string | number | boolean | string[] | null>
+        cellValues?: Record<string, string | number | boolean | string[] | null>,
+        options?: { createNew?: boolean; rowUuid?: string }
     ): Promise<CorralUnregisteredStepRowAttributes> {
         const { CorralUnregisteredStepRowModel } = requireTenantModels();
         const existingRows = await this.findUnregisteredStepRows(sessionUuid, stepUuid);
+        const rowUuid = options?.rowUuid?.trim();
+        const existingById = rowUuid
+            ? existingRows.find((row) => row.uuid_corral_unregistered_step_row === rowUuid)
+            : undefined;
         const key = registrationNumber.toLowerCase();
-        const existing = existingRows.find((row) => row.registration_number.toLowerCase() === key);
+        const sameNumber = existingRows.filter((row) => row.registration_number.toLowerCase() === key);
+        const existing = existingById ?? (options?.createNew || sameNumber.length !== 1 ? undefined : sameNumber[0]);
 
         if (existing) {
+            const patch: { cell_values?: CorralUnregisteredStepRowAttributes['cell_values']; registration_number?: string } = {};
             if (cellValues) {
-                await CorralUnregisteredStepRowModel.update(
-                    { cell_values: cellValues },
-                    { where: { uuid_corral_unregistered_step_row: existing.uuid_corral_unregistered_step_row } }
-                );
-                return { ...existing, cell_values: cellValues };
+                patch.cell_values = cellValues;
             }
-            return existing;
+            if (existing.registration_number !== registrationNumber) {
+                patch.registration_number = registrationNumber;
+            }
+            if (Object.keys(patch).length > 0) {
+                await CorralUnregisteredStepRowModel.update(patch, {
+                    where: { uuid_corral_unregistered_step_row: existing.uuid_corral_unregistered_step_row },
+                });
+            }
+            return {
+                ...existing,
+                registration_number: registrationNumber,
+                cell_values: cellValues ?? existing.cell_values,
+            };
+        }
+
+        if (!options?.createNew && sameNumber.length > 1) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Multiple unregistered animals share this registration number',
+            });
         }
 
         const created = await CorralUnregisteredStepRowModel.create({
@@ -1009,6 +1067,18 @@ class CorralSessionRepository {
             is_active: true,
         });
         return created.get({ plain: true }) as CorralUnregisteredStepRowAttributes;
+    }
+
+    async deactivateUnregisteredRows(rowUuids: string[]): Promise<number> {
+        if (rowUuids.length === 0) {
+            return 0;
+        }
+        const { CorralUnregisteredStepRowModel } = requireTenantModels();
+        const [count] = await CorralUnregisteredStepRowModel.update(
+            { is_active: false },
+            { where: { uuid_corral_unregistered_step_row: rowUuids, is_active: true } }
+        );
+        return count;
     }
 
     async listPendingAnimalRegistrations(ranchUuid?: string): Promise<PendingAnimalRegistrationDto[]> {
@@ -1022,12 +1092,20 @@ class CorralSessionRepository {
         const rows = await sequelize.query<PendingAnimalRegistrationQueryRow>(
             `
             SELECT
-                MIN(btrim(u.registration_number)) AS registration_number,
+                u.uuid_corral_unregistered_step_row,
+                btrim(u.registration_number) AS registration_number,
                 s.ranch_uuid,
-                MIN(COALESCE(u.scanned_at, u.created_at)) AS first_seen_at,
-                MAX(COALESCE(u.scanned_at, u.created_at)) AS last_seen_at,
-                json_agg(
-                    DISTINCT jsonb_build_object(
+                COALESCE(u.scanned_at, u.created_at) AS first_seen_at,
+                COALESCE(u.scanned_at, u.created_at) AS last_seen_at,
+                (
+                    SELECT COUNT(*)::int
+                    FROM animals a
+                    WHERE a.ranch_uuid = s.ranch_uuid
+                      AND a.is_active = true
+                      AND lower(btrim(a.registration_number)) = lower(btrim(u.registration_number))
+                ) AS matching_animal_count,
+                json_build_array(
+                    jsonb_build_object(
                         'uuid_corral_work_session', s.uuid_corral_work_session,
                         'work_date', s.work_date,
                         'responsible_person', s.responsible_person,
@@ -1041,22 +1119,7 @@ class CorralSessionRepository {
             WHERE u.is_active = true
               AND btrim(u.registration_number) <> ''
               ${ranchClause}
-              AND NOT EXISTS (
-                SELECT 1
-                FROM animals a
-                WHERE a.ranch_uuid = s.ranch_uuid
-                  AND a.is_active = true
-                  AND (
-                    lower(btrim(a.registration_number)) = lower(btrim(u.registration_number))
-                    OR (
-                      a.chip_number IS NOT NULL
-                      AND btrim(a.chip_number) <> ''
-                      AND lower(btrim(a.chip_number)) = lower(btrim(u.registration_number))
-                    )
-                  )
-              )
-            GROUP BY lower(btrim(u.registration_number)), s.ranch_uuid
-            ORDER BY MAX(COALESCE(u.scanned_at, u.created_at)) DESC
+            ORDER BY COALESCE(u.scanned_at, u.created_at) DESC
             `,
             {
                 type: QueryTypes.SELECT,
@@ -1065,10 +1128,12 @@ class CorralSessionRepository {
         );
 
         return rows.map((row: PendingAnimalRegistrationQueryRow) => ({
+            uuid_corral_unregistered_step_row: row.uuid_corral_unregistered_step_row,
             registration_number: row.registration_number,
             ranch_uuid: row.ranch_uuid,
             first_seen_at: toIsoString(row.first_seen_at),
             last_seen_at: toIsoString(row.last_seen_at),
+            matching_animal_count: Number(row.matching_animal_count) || 0,
             sessions: normalizePendingSessions(row.sessions),
         }));
     }
@@ -1093,10 +1158,12 @@ class CorralSessionRepository {
 export default CorralSessionRepository;
 
 interface PendingAnimalRegistrationQueryRow {
+    uuid_corral_unregistered_step_row: string;
     registration_number: string;
     ranch_uuid: string;
     first_seen_at: Date | string;
     last_seen_at: Date | string;
+    matching_animal_count: number | string;
     sessions: PendingAnimalRegistrationSessionDto[] | string | null;
 }
 

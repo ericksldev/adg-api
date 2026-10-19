@@ -373,17 +373,56 @@ class AnimalRepository implements
     async listByRanchForParentSelection(
         ranch_uuid: string,
         sex: AnimalSex
-    ): Promise<{ animal_uuid: string; registration_number: string }[]> {
+    ): Promise<{
+        animal_uuid: string;
+        registration_number: string;
+        chip_number: string | null;
+        birth_date: Date | string | null;
+    }[]> {
         const { AnimalModel } = requireTenantModels();
         const rows = await AnimalModel.findAll({
             where: { ranch_uuid, sex, is_active: true },
-            attributes: ['animal_uuid', 'registration_number'],
-            order: [['registration_number', 'ASC']],
+            attributes: ['animal_uuid', 'registration_number', 'chip_number', 'birth_date'],
+            order: [['registration_number', 'ASC'], ['created_at', 'ASC']],
         });
         return rows.map((r) => {
-            const p = r.get({ plain: true }) as { animal_uuid: string; registration_number: string };
-            return { animal_uuid: p.animal_uuid, registration_number: p.registration_number };
+            const p = r.get({ plain: true }) as {
+                animal_uuid: string;
+                registration_number: string;
+                chip_number?: string | null;
+                birth_date?: Date | string | null;
+            };
+            return {
+                animal_uuid: p.animal_uuid,
+                registration_number: p.registration_number,
+                chip_number: p.chip_number ?? null,
+                birth_date: p.birth_date ?? null,
+            };
         });
+    }
+
+    async findActiveByRanchRegistrationAndSex(
+        ranch_uuid: string,
+        registration_number: string,
+        sex: AnimalSex
+    ): Promise<{ animal_uuid: string }[]> {
+        const trimmed = registration_number.trim();
+        if (!trimmed) {
+            return [];
+        }
+        const escaped = trimmed.replace(/[\\%_]/g, (char) => `\\${char}`);
+        const { AnimalModel } = requireTenantModels();
+        const rows = await AnimalModel.findAll({
+            where: {
+                ranch_uuid,
+                sex,
+                is_active: true,
+                registration_number: { [Op.iLike]: escaped },
+            },
+            attributes: ['animal_uuid'],
+            order: [['created_at', 'ASC']],
+        });
+        return rows.map((row) => ({ animal_uuid: row.get('animal_uuid') as string }));
     }
 
     async findActiveUuidByRanchRegistrationAndSex(

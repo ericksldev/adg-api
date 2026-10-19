@@ -247,6 +247,9 @@ export interface AppendCorralStepAnimalsBody {
 
 export interface ScanCorralStepAnimalBody {
     identifier: string;
+    animal_uuid?: string;
+    create_new?: boolean;
+    row_uuid?: string;
 }
 
 export interface CorralStepAnimalAssignmentInput {
@@ -346,10 +349,12 @@ export interface PendingAnimalRegistrationSessionDto {
 }
 
 export interface PendingAnimalRegistrationDto {
+    uuid_corral_unregistered_step_row: string;
     registration_number: string;
     ranch_uuid: string;
     first_seen_at: string;
     last_seen_at: string;
+    matching_animal_count: number;
     sessions: PendingAnimalRegistrationSessionDto[];
 }
 

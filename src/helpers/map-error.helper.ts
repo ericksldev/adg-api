@@ -2,6 +2,17 @@ import { UniqueConstraintError, ValidationError } from "sequelize";
 import ApiError from "../errors/apiError";
 import HttpStatusCodes from "../errors/httpStatusCodes";
 
+function isPayloadTooLarge(err: unknown): boolean {
+    if (!err || typeof err !== 'object') {
+        return false;
+    }
+    const candidate = err as { type?: string; name?: string; status?: number; statusCode?: number };
+    return candidate.type === 'entity.too.large'
+        || candidate.name === 'PayloadTooLargeError'
+        || candidate.status === HttpStatusCodes.PAYLOAD_TOO_LARGE
+        || candidate.statusCode === HttpStatusCodes.PAYLOAD_TOO_LARGE;
+}
+
 export const mapErrorHelper = (err: any): ApiError => {
 
     if (err instanceof ApiError) {
@@ -35,6 +46,14 @@ export const mapErrorHelper = (err: any): ApiError => {
             name: 'ValidationError',
             statusCode: HttpStatusCodes.BAD_REQUEST,
             description: err.errors?.[0]?.message || 'Validation error'
+        });
+    }
+
+    if (isPayloadTooLarge(err)) {
+        return new ApiError({
+            name: 'PayloadTooLargeError',
+            statusCode: HttpStatusCodes.PAYLOAD_TOO_LARGE,
+            description: 'Request body is too large'
         });
     }
 

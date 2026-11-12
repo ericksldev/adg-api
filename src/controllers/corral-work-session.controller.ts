@@ -12,6 +12,8 @@ import {
     UpdateCorralStepWorkModeBody,
     AppendCorralStepAnimalsBody,
     ApplyPaddockDistributionBody,
+    CreateCorralStepCounterBody,
+    UpdateCorralStepCounterBody,
 } from '../interfaces/corral-session/corral-session.interface';
 import { CorralActivityCode } from '../constants/corral-work.constants';
 import { AuthRequest } from '../interfaces/middleware/auth-middleware.interface';
@@ -148,6 +150,19 @@ class CorralWorkSessionController {
         }
     };
 
+    removeStepAnimal = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const response = await this.service.removeStepAnimal(
+                req.params.uuid_corral_work_session,
+                req.params.uuid_corral_session_step,
+                req.params.animal_uuid
+            );
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
     previewAnimals = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const body = req.body as CorralSessionAnimalsLoadBody;
@@ -258,6 +273,48 @@ class CorralWorkSessionController {
         try {
             const identifier = typeof req.query.identifier === 'string' ? req.query.identifier : '';
             const response = await this.service.lookupAnimal(req.params.uuid_corral_work_session, identifier);
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    createStepCounter = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const body = req.body as CreateCorralStepCounterBody;
+            const response = await this.service.createStepCounter(
+                req.params.uuid_corral_work_session,
+                req.params.uuid_corral_session_step,
+                body
+            );
+            return handleResponse(res, response, 201);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    updateStepCounter = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const body = req.body as UpdateCorralStepCounterBody;
+            const response = await this.service.updateStepCounter(
+                req.params.uuid_corral_work_session,
+                req.params.uuid_corral_session_step,
+                req.params.uuid_corral_step_counter,
+                body
+            );
+            return handleResponse(res, response);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    deleteStepCounter = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const response = await this.service.deleteStepCounter(
+                req.params.uuid_corral_work_session,
+                req.params.uuid_corral_session_step,
+                req.params.uuid_corral_step_counter
+            );
             return handleResponse(res, response);
         } catch (error) {
             next(error);

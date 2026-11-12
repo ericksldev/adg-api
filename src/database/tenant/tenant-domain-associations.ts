@@ -10,6 +10,7 @@ export type TenantDomainModels = OperationalModelsBundle & LivestockCategoryMode
     CorralWorkSessionModel: ModelStatic<Model>;
     WorkSessionPlannedActivityModel: ModelStatic<Model>;
     CorralSessionStepModel: ModelStatic<Model>;
+    CorralStepCounterModel: ModelStatic<Model>;
     CorralStepActivityModel: ModelStatic<Model>;
     CorralSessionSourceModel: ModelStatic<Model>;
     CorralSessionAnimalModel: ModelStatic<Model>;
@@ -604,5 +605,18 @@ export function associateTenantDomainModels(m: TenantDomainModels): void {
     CorralActivityRecordModel.belongsTo(AnimalModel, {
         foreignKey: 'animal_uuid',
         as: 'animal',
+    });
+
+    m.CorralSessionStepModel.hasMany(m.CorralStepCounterModel, {
+        foreignKey: 'uuid_corral_session_step',
+        as: 'counters',
+    });
+    m.CorralStepCounterModel.belongsTo(m.CorralSessionStepModel, {
+        foreignKey: 'uuid_corral_session_step',
+        as: 'step',
+    });
+    m.CorralWorkSessionModel.hasMany(m.CorralStepCounterModel, {
+        foreignKey: 'uuid_corral_work_session',
+        as: 'step_counters',
     });
 }

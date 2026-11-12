@@ -56,6 +56,23 @@ export type CorralSessionStepCreationAttributes = Optional<
     'uuid_corral_session_step' | 'label' | 'work_mode' | 'is_active' | 'created_at' | 'updated_at'
 >;
 
+export interface CorralStepCounterAttributes {
+    uuid_corral_step_counter: string;
+    uuid_corral_work_session: string;
+    uuid_corral_session_step: string;
+    title: string;
+    count: number;
+    sort_order: number;
+    is_active: boolean;
+    created_at?: Date;
+    updated_at?: Date;
+}
+
+export type CorralStepCounterCreationAttributes = Optional<
+    CorralStepCounterAttributes,
+    'uuid_corral_step_counter' | 'count' | 'sort_order' | 'is_active' | 'created_at' | 'updated_at'
+>;
+
 export interface CorralStepActivityAttributes {
     uuid_corral_step_activity: string;
     uuid_corral_session_step: string;
@@ -295,6 +312,24 @@ export interface CorralStepGridColumnDto {
     value_type: 'boolean' | 'number' | 'text' | 'medicine' | 'paddock_current' | 'paddock_destination';
 }
 
+export interface CorralStepCounterDto {
+    uuid_corral_step_counter: string;
+    uuid_corral_session_step: string;
+    title: string;
+    count: number;
+    sort_order: number;
+}
+
+export interface CreateCorralStepCounterBody {
+    title: string;
+}
+
+export interface UpdateCorralStepCounterBody {
+    title?: string;
+    delta?: number;
+    count?: number;
+}
+
 export interface CorralStepGridDto {
     uuid_corral_session_step: string;
     step_order: number;
@@ -304,6 +339,7 @@ export interface CorralStepGridDto {
     rows: CorralStepGridRowDto[];
     animal_count: number;
     scanned_animal_uuids?: string[];
+    counters?: CorralStepCounterDto[];
 }
 
 export interface CorralStepGridRowDto {

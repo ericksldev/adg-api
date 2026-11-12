@@ -45,6 +45,11 @@ corralWorkSessionRoutes.post(
     authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
     container.corralWorkSessionController.addUnregisteredStepAnimal
 );
+corralWorkSessionRoutes.delete(
+    '/:uuid_corral_work_session/steps/:uuid_corral_session_step/animals/:animal_uuid',
+    authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.removeStepAnimal
+);
 corralWorkSessionRoutes.post(
     '/:uuid_corral_work_session/animals/preview',
     authorize(Permission.ANIMAL_WORK_SESSION_READ),
@@ -104,6 +109,21 @@ corralWorkSessionRoutes.post(
     '/:uuid_corral_work_session/close',
     authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
     container.corralWorkSessionController.close
+);
+corralWorkSessionRoutes.post(
+    '/:uuid_corral_work_session/steps/:uuid_corral_session_step/counters',
+    authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.createStepCounter
+);
+corralWorkSessionRoutes.patch(
+    '/:uuid_corral_work_session/steps/:uuid_corral_session_step/counters/:uuid_corral_step_counter',
+    authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.updateStepCounter
+);
+corralWorkSessionRoutes.delete(
+    '/:uuid_corral_work_session/steps/:uuid_corral_session_step/counters/:uuid_corral_step_counter',
+    authorize(Permission.ANIMAL_WORK_SESSION_WRITE),
+    container.corralWorkSessionController.deleteStepCounter
 );
 corralWorkSessionRoutes.get(
     '/:uuid_corral_work_session',

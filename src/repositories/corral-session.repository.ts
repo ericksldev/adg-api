@@ -20,6 +20,7 @@ import type {
     CorralSessionSourceAttributes,
     CorralSessionStepAttributes,
     CorralStepActivityAttributes,
+    CorralStepCounterAttributes,
     CorralUnregisteredStepRowAttributes,
     AnimalWorkHistorySource,
     PendingAnimalRegistrationDto,
@@ -448,6 +449,70 @@ class CorralSessionRepository {
             { is_active: false },
             { where: { uuid_corral_work_session: sessionUuid, is_active: true } }
         );
+    }
+
+    async deactivateStepAnimal(stepUuid: string, animalUuid: string): Promise<boolean> {
+        const { CorralStepAnimalModel } = requireTenantModels();
+        const [count] = await CorralStepAnimalModel.update(
+            { is_active: false, scanned_at: null },
+            {
+                where: {
+                    uuid_corral_session_step: stepUuid,
+                    animal_uuid: animalUuid,
+                    is_active: true,
+                },
+            }
+        );
+        return count > 0;
+    }
+
+    async countOtherActiveStepsForAnimal(sessionUuid: string, animalUuid: string, exceptStepUuid: string): Promise<number> {
+        const { CorralStepAnimalModel } = requireTenantModels();
+        return CorralStepAnimalModel.count({
+            where: {
+                uuid_corral_work_session: sessionUuid,
+                animal_uuid: animalUuid,
+                is_active: true,
+                uuid_corral_session_step: { [Op.ne]: exceptStepUuid },
+            },
+        });
+    }
+
+    async deactivateSessionAnimal(sessionUuid: string, animalUuid: string): Promise<void> {
+        const { CorralSessionAnimalModel } = requireTenantModels();
+        await CorralSessionAnimalModel.update(
+            { is_active: false },
+            {
+                where: {
+                    uuid_corral_work_session: sessionUuid,
+                    animal_uuid: animalUuid,
+                    is_active: true,
+                },
+            }
+        );
+    }
+
+    async deactivateStepRowRecords(sessionUuid: string, stepUuid: string, animalUuid: string): Promise<void> {
+        const {
+            CorralActivityRecordModel,
+            CorralAnimalObservationModel,
+            CorralAnimalVisualConditionModel,
+            CorralAnimalAdditionalMedicationModel,
+            CorralAnimalAdditionalTreatmentModel,
+        } = requireTenantModels();
+        const stepWhere = {
+            uuid_corral_work_session: sessionUuid,
+            uuid_corral_session_step: stepUuid,
+            animal_uuid: animalUuid,
+            is_active: true,
+        };
+        await Promise.all([
+            CorralActivityRecordModel.update({ is_active: false }, { where: stepWhere }),
+            CorralAnimalObservationModel.update({ is_active: false }, { where: stepWhere }),
+            CorralAnimalVisualConditionModel.update({ is_active: false }, { where: stepWhere }),
+            CorralAnimalAdditionalMedicationModel.update({ is_active: false }, { where: stepWhere }),
+            CorralAnimalAdditionalTreatmentModel.update({ is_active: false }, { where: stepWhere }),
+        ]);
     }
 
     async bulkCreateStepAnimals(
@@ -1136,6 +1201,136 @@ class CorralSessionRepository {
             matching_animal_count: Number(row.matching_animal_count) || 0,
             sessions: normalizePendingSessions(row.sessions),
         }));
+    }
+
+    async findActiveStep(
+        sessionUuid: string,
+        stepUuid: string
+    ): Promise<CorralSessionStepAttributes | null> {
+        const { CorralSessionStepModel } = requireTenantModels();
+        const row = await CorralSessionStepModel.findOne({
+            where: {
+                uuid_corral_work_session: sessionUuid,
+                uuid_corral_session_step: stepUuid,
+                is_active: true,
+            },
+        });
+        return row ? (row.get({ plain: true }) as CorralSessionStepAttributes) : null;
+    }
+
+    async findActiveStepCounters(sessionUuid: string, stepUuid?: string): Promise<CorralStepCounterAttributes[]> {
+        const { CorralStepCounterModel } = requireTenantModels();
+        const rows = await CorralStepCounterModel.findAll({
+            where: {
+                uuid_corral_work_session: sessionUuid,
+                is_active: true,
+                ...(stepUuid ? { uuid_corral_session_step: stepUuid } : {}),
+            },
+            order: [
+                ['sort_order', 'ASC'],
+                ['created_at', 'ASC'],
+            ],
+        });
+        return rows.map((row) => row.get({ plain: true }) as CorralStepCounterAttributes);
+    }
+
+    async createStepCounter(data: {
+        uuid_corral_work_session: string;
+        uuid_corral_session_step: string;
+        title: string;
+        sort_order: number;
+    }): Promise<CorralStepCounterAttributes> {
+        const { CorralStepCounterModel } = requireTenantModels();
+        const created = await CorralStepCounterModel.create({
+            ...data,
+            count: 0,
+            is_active: true,
+        });
+        return created.get({ plain: true }) as CorralStepCounterAttributes;
+    }
+
+    async adjustStepCounter(
+        sessionUuid: string,
+        stepUuid: string,
+        counterUuid: string,
+        delta: number
+    ): Promise<CorralStepCounterAttributes | null> {
+        const { CorralStepCounterModel } = requireTenantModels();
+        const sequelize = CorralStepCounterModel.sequelize;
+        if (!sequelize) return null;
+
+        return sequelize.transaction(async (transaction) => {
+            const row = await CorralStepCounterModel.findOne({
+                where: {
+                    uuid_corral_step_counter: counterUuid,
+                    uuid_corral_session_step: stepUuid,
+                    uuid_corral_work_session: sessionUuid,
+                    is_active: true,
+                },
+                transaction,
+                lock: transaction.LOCK.UPDATE,
+            });
+            if (!row) return null;
+            const next = Math.max(0, (Number(row.get('count')) || 0) + delta);
+            await row.update({ count: next }, { transaction });
+            return row.get({ plain: true }) as CorralStepCounterAttributes;
+        });
+    }
+
+    async setStepCounterCount(
+        sessionUuid: string,
+        stepUuid: string,
+        counterUuid: string,
+        count: number
+    ): Promise<CorralStepCounterAttributes | null> {
+        const { CorralStepCounterModel } = requireTenantModels();
+        const row = await CorralStepCounterModel.findOne({
+            where: {
+                uuid_corral_step_counter: counterUuid,
+                uuid_corral_session_step: stepUuid,
+                uuid_corral_work_session: sessionUuid,
+                is_active: true,
+            },
+        });
+        if (!row) return null;
+        await row.update({ count });
+        return row.get({ plain: true }) as CorralStepCounterAttributes;
+    }
+
+    async renameStepCounter(
+        sessionUuid: string,
+        stepUuid: string,
+        counterUuid: string,
+        title: string
+    ): Promise<CorralStepCounterAttributes | null> {
+        const { CorralStepCounterModel } = requireTenantModels();
+        const row = await CorralStepCounterModel.findOne({
+            where: {
+                uuid_corral_step_counter: counterUuid,
+                uuid_corral_session_step: stepUuid,
+                uuid_corral_work_session: sessionUuid,
+                is_active: true,
+            },
+        });
+        if (!row) return null;
+        await row.update({ title });
+        return row.get({ plain: true }) as CorralStepCounterAttributes;
+    }
+
+    async deactivateStepCounter(sessionUuid: string, stepUuid: string, counterUuid: string): Promise<boolean> {
+        const { CorralStepCounterModel } = requireTenantModels();
+        const [count] = await CorralStepCounterModel.update(
+            { is_active: false },
+            {
+                where: {
+                    uuid_corral_step_counter: counterUuid,
+                    uuid_corral_session_step: stepUuid,
+                    uuid_corral_work_session: sessionUuid,
+                    is_active: true,
+                },
+            }
+        );
+        return count > 0;
     }
 
     async countFindings(sessionUuid: string): Promise<number> {

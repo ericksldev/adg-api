@@ -27,6 +27,17 @@ export function createCorralSessionOperationalModels(sequelize: Sequelize) {
         is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     }, 'corral_session_steps', 'CorralSessionStep');
 
+    class CorralStepCounterModel extends Model {}
+    initCorralModel(sequelize, CorralStepCounterModel, {
+        uuid_corral_step_counter: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+        uuid_corral_work_session: { type: DataTypes.UUID, allowNull: false },
+        uuid_corral_session_step: { type: DataTypes.UUID, allowNull: false },
+        title: { type: DataTypes.STRING(80), allowNull: false },
+        count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+        sort_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+        is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    }, 'corral_step_counters', 'CorralStepCounter');
+
     class CorralStepActivityModel extends Model {}
     initCorralModel(sequelize, CorralStepActivityModel, {
         uuid_corral_step_activity: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -144,6 +155,7 @@ export function createCorralSessionOperationalModels(sequelize: Sequelize) {
 
     return {
         CorralSessionStepModel,
+        CorralStepCounterModel,
         CorralStepActivityModel,
         CorralSessionSourceModel,
         CorralSessionAnimalModel,

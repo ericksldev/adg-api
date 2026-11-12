@@ -31,6 +31,10 @@ import {
     PendingAnimalRegistrationDto,
     ApplyPaddockDistributionBody,
     ApplyPaddockDistributionResultDto,
+    CorralStepCounterAttributes,
+    CorralStepCounterDto,
+    CreateCorralStepCounterBody,
+    UpdateCorralStepCounterBody,
 } from '../interfaces/corral-session/corral-session.interface';
 import {
     CORRAL_ACTIVITY_CODES,
@@ -51,6 +55,9 @@ import {
 import { normalizeAnimalIdentifier } from '../utils/animal-identifier.util';
 
 const ANIMAL_WORK_HISTORY_LIMIT = 10;
+const MAX_STEP_COUNTERS = 30;
+const MAX_COUNTER_TITLE_LENGTH = 80;
+const MAX_COUNTER_COUNT = 1_000_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type AnimalLookupMatch = {
@@ -140,6 +147,7 @@ class CorralWorkSessionService {
         }
 
         const animals = await this.repository.findSessionAnimals(uuid);
+        const countersByStep = this.groupCountersByStep(await this.repository.findActiveStepCounters(uuid));
         const paddockLabels = await this.animalMovementService.findCurrentPaddockLabels(
             animals.map((animal) => animal.animal_uuid)
         );
@@ -207,6 +215,7 @@ class CorralWorkSessionService {
                 work_mode: step.work_mode,
                 columns: this.buildColumns(gridActivities),
                 animal_count: stepAnimals.length + missingInventoryRows.length,
+                counters: countersByStep.get(step.uuid_corral_session_step) ?? [],
                 scanned_animal_uuids: await this.repository.findStepQueueScans(
                     uuid,
                     step.uuid_corral_session_step
@@ -514,6 +523,78 @@ class CorralWorkSessionService {
         return { success: true, data: grid };
     }
 
+    async removeStepAnimal(
+        sessionUuid: string,
+        stepUuid: string,
+        animalUuid: string
+    ): Promise<ServiceResponse<CorralStepGridDto>> {
+        const session = await this.requireSession(sessionUuid);
+        const plain = session.get({ plain: true }) as CorralWorkSessionAttributes;
+        if (plain.status === CorralWorkSessionStatus.CLOSED) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Cannot modify a closed session',
+            });
+        }
+
+        const stepsWithActivities = await this.repository.findStepsWithActivities(sessionUuid);
+        const stepDef = stepsWithActivities.find((item) => item.step.uuid_corral_session_step === stepUuid);
+        if (!stepDef) {
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Processing step not found',
+            });
+        }
+
+        const targetUuid = (animalUuid ?? '').trim();
+        if (!targetUuid) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'animal_uuid is required',
+            });
+        }
+
+        const removedStepAnimal = await this.repository.deactivateStepAnimal(stepUuid, targetUuid);
+        const removedUnregistered = removedStepAnimal
+            ? 0
+            : await this.repository.deactivateUnregisteredRows([targetUuid]);
+
+        if (!removedStepAnimal && removedUnregistered === 0) {
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Animal is not part of this step list',
+            });
+        }
+
+        await this.repository.deactivateStepRowRecords(sessionUuid, stepUuid, targetUuid);
+
+        if (removedStepAnimal) {
+            const remainingSteps = await this.repository.countOtherActiveStepsForAnimal(
+                sessionUuid,
+                targetUuid,
+                stepUuid
+            );
+            if (remainingSteps === 0) {
+                await this.repository.deactivateSessionAnimal(sessionUuid, targetUuid);
+            }
+        }
+
+        const workspace = await this.getWorkspace(sessionUuid);
+        const grid = workspace.data?.grids.find((item) => item.uuid_corral_session_step === stepUuid);
+        if (!grid) {
+            throw new ApiError({
+                name: 'InternalError',
+                statusCode: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+                description: 'Failed to reload step grid',
+            });
+        }
+        return { success: true, data: grid };
+    }
+
     async previewAnimals(
         sessionUuid: string,
         body: CorralSessionAnimalsLoadBody
@@ -694,6 +775,98 @@ class CorralWorkSessionService {
             });
         }
         return { success: true, data: grid };
+    }
+
+    async createStepCounter(
+        sessionUuid: string,
+        stepUuid: string,
+        body: CreateCorralStepCounterBody
+    ): Promise<ServiceResponse<CorralStepCounterDto>> {
+        await this.requireMutableStep(sessionUuid, stepUuid);
+        const title = this.normalizeCounterTitle(body?.title);
+        const existing = await this.repository.findActiveStepCounters(sessionUuid, stepUuid);
+        if (existing.length >= MAX_STEP_COUNTERS) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: `A step can have at most ${MAX_STEP_COUNTERS} counters`,
+            });
+        }
+        this.assertUniqueCounterTitle(existing, title);
+        const created = await this.repository.createStepCounter({
+            uuid_corral_work_session: sessionUuid,
+            uuid_corral_session_step: stepUuid,
+            title,
+            sort_order: existing.reduce((max, counter) => Math.max(max, counter.sort_order), 0) + 1,
+        });
+        return { success: true, data: this.toStepCounterDto(created) };
+    }
+
+    async updateStepCounter(
+        sessionUuid: string,
+        stepUuid: string,
+        counterUuid: string,
+        body: UpdateCorralStepCounterBody
+    ): Promise<ServiceResponse<CorralStepCounterDto>> {
+        await this.requireMutableStep(sessionUuid, stepUuid);
+        const hasTitle = body?.title != null;
+        const hasDelta = body?.delta != null;
+        const hasCount = body?.count != null;
+        if (!hasTitle && !hasDelta && !hasCount) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Counter update requires a title, delta, or count',
+            });
+        }
+        if (hasDelta && hasCount) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Counter update accepts either a delta or an absolute count',
+            });
+        }
+
+        let updated: CorralStepCounterAttributes | null = null;
+        if (hasTitle) {
+            const title = this.normalizeCounterTitle(body.title);
+            const existing = await this.repository.findActiveStepCounters(sessionUuid, stepUuid);
+            this.assertUniqueCounterTitle(existing, title, counterUuid);
+            updated = await this.repository.renameStepCounter(sessionUuid, stepUuid, counterUuid, title);
+        }
+        if (hasDelta) {
+            const delta = this.normalizeCounterDelta(body.delta);
+            updated = await this.repository.adjustStepCounter(sessionUuid, stepUuid, counterUuid, delta);
+        }
+        if (hasCount) {
+            const count = this.normalizeCounterCount(body.count);
+            updated = await this.repository.setStepCounterCount(sessionUuid, stepUuid, counterUuid, count);
+        }
+        if (!updated) {
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Step counter not found',
+            });
+        }
+        return { success: true, data: this.toStepCounterDto(updated) };
+    }
+
+    async deleteStepCounter(
+        sessionUuid: string,
+        stepUuid: string,
+        counterUuid: string
+    ): Promise<ServiceResponse<null>> {
+        await this.requireMutableStep(sessionUuid, stepUuid);
+        const removed = await this.repository.deactivateStepCounter(sessionUuid, stepUuid, counterUuid);
+        if (!removed) {
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Step counter not found',
+            });
+        }
+        return { success: true, data: null };
     }
 
     async appendAnimalsToStep(
@@ -1619,6 +1792,100 @@ class CorralWorkSessionService {
         });
     }
 
+    private async requireMutableStep(sessionUuid: string, stepUuid: string): Promise<void> {
+        const session = await this.requireSession(sessionUuid);
+        const plain = session.get({ plain: true }) as CorralWorkSessionAttributes;
+        if (plain.status === CorralWorkSessionStatus.CLOSED) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Cannot modify a closed session',
+            });
+        }
+        const step = await this.repository.findActiveStep(sessionUuid, stepUuid);
+        if (!step) {
+            throw new ApiError({
+                name: 'NotFound',
+                statusCode: HttpStatusCodes.NOT_FOUND,
+                description: 'Processing step not found',
+            });
+        }
+    }
+
+    private normalizeCounterTitle(value: unknown): string {
+        const title = typeof value === 'string' ? value.trim() : '';
+        if (!title || title.length > MAX_COUNTER_TITLE_LENGTH) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: `Counter title must be between 1 and ${MAX_COUNTER_TITLE_LENGTH} characters`,
+            });
+        }
+        return title;
+    }
+
+    private normalizeCounterDelta(value: unknown): number {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value === 0 || Math.abs(value) > MAX_COUNTER_COUNT) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Counter delta must be a non-zero integer',
+            });
+        }
+        return value;
+    }
+
+    private normalizeCounterCount(value: unknown): number {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > MAX_COUNTER_COUNT) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'Counter count must be a non-negative integer',
+            });
+        }
+        return value;
+    }
+
+    private assertUniqueCounterTitle(
+        existing: CorralStepCounterAttributes[],
+        title: string,
+        ignoreCounterUuid?: string
+    ): void {
+        const normalized = title.toLowerCase();
+        const duplicate = existing.some(
+            (counter) =>
+                counter.uuid_corral_step_counter !== ignoreCounterUuid &&
+                counter.title.trim().toLowerCase() === normalized
+        );
+        if (duplicate) {
+            throw new ApiError({
+                name: 'ValidationError',
+                statusCode: HttpStatusCodes.BAD_REQUEST,
+                description: 'A counter with this title already exists on the step',
+            });
+        }
+    }
+
+    private groupCountersByStep(counters: CorralStepCounterAttributes[]): Map<string, CorralStepCounterDto[]> {
+        const grouped = new Map<string, CorralStepCounterDto[]>();
+        for (const counter of counters) {
+            const list = grouped.get(counter.uuid_corral_session_step) ?? [];
+            list.push(this.toStepCounterDto(counter));
+            grouped.set(counter.uuid_corral_session_step, list);
+        }
+        return grouped;
+    }
+
+    private toStepCounterDto(counter: CorralStepCounterAttributes): CorralStepCounterDto {
+        return {
+            uuid_corral_step_counter: counter.uuid_corral_step_counter,
+            uuid_corral_session_step: counter.uuid_corral_session_step,
+            title: counter.title,
+            count: Number(counter.count) || 0,
+            sort_order: counter.sort_order,
+        };
+    }
+
     private async requireSession(uuid: string) {
         if (!uuid?.trim()) {
             throw new ApiError({
@@ -1799,6 +2066,15 @@ class CorralWorkSessionService {
         }
     }
 
+    private parseAttendanceBool(raw: string | number | boolean): boolean {
+        if (raw === true || raw === 1 || raw === '1') return true;
+        if (raw === false || raw === 0 || raw === '0') return false;
+        const normalized = String(raw).trim().toLowerCase();
+        if (['true', 'yes', 'si', 'sí', 'sim'].includes(normalized)) return true;
+        if (['false', 'no', 'nao', 'não'].includes(normalized)) return false;
+        return false;
+    }
+
     private buildActivityPayload(
         sessionUuid: string,
         stepUuid: string,
@@ -1823,7 +2099,7 @@ class CorralWorkSessionService {
 
         switch (activity) {
             case CorralActivityCode.ATTENDANCE:
-                base.bool_value = raw === true || raw === 'true' || raw === 1 || raw === '1';
+                base.bool_value = this.parseAttendanceBool(raw);
                 break;
             case CorralActivityCode.WEIGHING:
                 base.numeric_value = typeof raw === 'number' ? raw : Number(raw);
